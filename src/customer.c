@@ -55,12 +55,21 @@ void handleIncomingBC(char* buffer, char* identifier){
         write(1, ANSI_YEL, sizeof(ANSI_YEL) - 1);
         write(1, buffer, ID_SIZE);
         write(1, ANSI_RST, sizeof(ANSI_RST) - 1);
-        write(1, " started to work\n", strlen(" started to work\n"));
+        write(1, " restuarant" ANSI_GRN " opened\n" ANSI_RST, 
+                strlen(" restuarant opened\n") + sizeof(ANSI_YEL) + sizeof(ANSI_RST) - 2);
 
         return;
     }
+    else if (strncmp(&buffer[ID_SIZE], "break", strlen("break")) == 0) {
+        write(1, ANSI_YEL, sizeof(ANSI_YEL) - 1);
+        write(1, buffer, ID_SIZE);
+        write(1, ANSI_RST, sizeof(ANSI_RST) - 1);
+        write(1, " restuarant" ANSI_RED " closed" ANSI_RST "\n", 
+                strlen(" restuarant closed\n") + sizeof(ANSI_RED) + sizeof(ANSI_RST) - 2);
 
-    write(0, &buffer[ID_SIZE], strlen("start working"));
+        return;
+    }
+    write(0, buffer, BUFFER_SIZE);
 }
 
 int main(int argc, char const *argv[]) {

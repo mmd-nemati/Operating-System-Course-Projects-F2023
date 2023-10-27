@@ -61,7 +61,6 @@ int connectServer(int fd, struct sockaddr_in server, int port) {
 }
 
 CLIResult handleCLI(RestaurantState *state){
-    // char buffer[BUFFER_SIZE] = {0};
     CLIResult answer;
     answer.result = 1;
     memset(answer.buffer, '\0', BUFFER_SIZE);
@@ -73,12 +72,19 @@ CLIResult handleCLI(RestaurantState *state){
             answer.result = 0;
             return answer;
         }
-                    // write(1, *state, sizeof(int));
         *state = OPEN;
-        // answer.result = 1;
     }
-        return answer;
-        // TODO log file
+    else if (strncmp(&answer.buffer[ID_SIZE], "break", strlen("break")) == 0) {
+        if (*state == CLOSED) {
+            logTerminalWarning("Restaurant is already closed");
+            // TODO log file
+            answer.result = 0;
+            return answer;
+        }
+        *state = CLOSED;
+    }
+    return answer;
+    // TODO log file
 }
 void handleIncomingBC(char* buffer, char* identifier){
     if (strncmp(buffer, identifier, strlen(identifier)) == 0) // check self broadcasting
