@@ -13,6 +13,9 @@
 #include <string.h>
 #include <asm/socket.h>
 
+#include "../lib/types.h"
+#include "../lib/colors.h"
+
 int makeBroadcast(struct sockaddr_in* addrOut){
     int broadcastFd = socket(AF_INET, SOCK_DGRAM, 0);
     if (broadcastFd < 0) return broadcastFd;
@@ -44,6 +47,25 @@ int makeTCP(struct sockaddr_in* addrOut){
     return tcpFd;
 }
 
+void sendHelloSupplier(int fd, struct sockaddr_in addr, char* buffer, char* identifier){
+    memset(buffer, '\0', BUFFER_SIZE);
+    strncpy(buffer, identifier, ID_SIZE);
+    sprintf(&buffer[ID_SIZE], "hello supplier-%s-%hu", identifier, htons(addr.sin_port));
+    sendto(fd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&addr, sizeof(addr));
+}
+
+void handleIncomingBC(int fd, struct sockaddr_in addr, char* buffer, char* identifier){
+    if (strncmp(buffer, identifier, ID_SIZE) == 0) 
+        return;
+    
+    if (strncmp(&buffer[ID_SIZE], "start working", strlen("start working")) == 0) {
+        sendHelloSupplier(fd, addr, buffer, identifier);
+        return;
+    }
+
+    write(0, buffer, BUFFER_SIZE);
+}
+
 int main(int argc, char const *argv[]) {
     int tcpSock, bcSock, broadcast = 1, opt = 1;
     char buffer[1024] = {0};
@@ -53,52 +75,35 @@ int main(int argc, char const *argv[]) {
 
     sprintf(identifier, "%d", getpid());
     char username[100];
+    memcpy(username, "supp1", strlen("supp1"));
     // memcpy(buffer, identifier, strlen(identifier));
 
     tcpSock = makeTCP(&tcpAddress);
     bcSock = makeBroadcast(&bcAddress);
     // setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
     // setsockopt(tcpSock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
-
     bind(bcSock, (struct sockaddr *)&bcAddress, sizeof(bcAddress));
+    sendHelloSupplier(bcSock, bcAddress, buffer, username);
     while (1) {
         FD_ZERO(&readfds);
         FD_SET(tcpSock, &readfds);
         FD_SET(bcSock, &readfds);
         FD_SET(0, &readfds);
-        int maxSock = (tcpSock > bcSock) ? tcpSock : bcSock;
-        select(maxSock + 1, &readfds, NULL, NULL, NULL);
+
+        select(bcSock + 1, &readfds, NULL, NULL, NULL);
 
 
         if (FD_ISSET(0, &readfds)) {
             memset(buffer, 0, 1024);
-            read(0, buffer+strlen(identifier), 1024-strlen(identifier));
-            memcpy(buffer, identifier, strlen(identifier));
-            // if (strncmp(buffer+strlen(identifier), "start working", strlen("start working")) == 0) {
-            //     sendto(bcSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
-            // }
-            // else
-                sendto(bcSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
+            read(0, buffer+strlen(username), 1024-strlen(username));
+            memcpy(buffer, username, strlen(username));
+            sendto(bcSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
         }
 
         if (FD_ISSET(bcSock, &readfds)) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
-            if (strncmp(buffer, identifier,strlen(identifier)) != 0) {
-                if (strncmp(buffer+strlen(identifier), "start working", strlen("start working")) == 0)
-                    printf("heard starting to work:%c%c%c%c%c\n", buffer[0], buffer[1], buffer[2], buffer[3], 
-                            buffer[4]);
-                // printf("%s\n", buffer);
-
-                // if (strncmp(buffer+strlen(identifier), "hello", 5) == 0){
-                //     if ((strncmp(buffer+5, username, strlen(username)) == 0))
-                //         sendto(tcpSock, "REJECT USERNAME", strlen("REJECT USERNAME"), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
-                // }
-                // if (strncmp(buffer, "REJECT USERNAME", strlen("REJECT USERNAME") == 0)) {
-                //     printf("Rejected\n");
-                //     exit(0);
-                // }
-            }
+            handleIncomingBC(bcSock, bcAddress, buffer, username);
         }
     }
     // write(0, "Enter username: ", sizeof("Enter username: "));

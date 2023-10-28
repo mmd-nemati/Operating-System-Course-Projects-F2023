@@ -12,6 +12,7 @@
 #define BCAST_IP  "192.168.1.255"
 #define TIMEOUT   60
 #define TOKEN_DEILIMITER "\n"
+#define MAX_SUPPLIER 100
 
 typedef struct {
     char id[ID_SIZE];
@@ -40,4 +41,10 @@ typedef struct {
     int result;
     char buffer[BUFFER_SIZE];
 } CLIResult;
+
+typedef struct {
+    char username[ID_SIZE];
+    unsigned short port;
+} SupplierInfo;
+
 #endif // __TYPES_H__

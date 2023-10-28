@@ -15,6 +15,39 @@
 
 #include "../lib/types.h"
 #include "../lib/logger.h"
+#include "../lib/colors.h"
+RestaurantState state = CLOSED;
+SupplierInfo suppliers[MAX_SUPPLIER];
+int suppliersCount = 0;
+
+int isSupplierUnique(const char *username) {
+    for (int i = 0; i < suppliersCount; i++) {
+        if (strcmp(suppliers[i].username, username) == 0) {
+            return 0;  // Username is not unique
+        }
+    }
+    return 1;  // Username is unique
+}
+
+void addSupplier(const char *username, unsigned short port) {
+    SupplierInfo* newSupplier = &suppliers[suppliersCount];
+    suppliersCount++;
+    memset(newSupplier->username, '\0', ID_SIZE);
+    strcpy(newSupplier->username, username);
+    newSupplier->port = port;
+}
+
+void printSuppliers() {
+    if (suppliersCount == 0) {
+        printf("%sNo available suppliers%s\n", ANSI_RED, ANSI_RST);
+        return;
+    }
+    printf("--------------------\n");
+    printf("<username>::<port>\n");
+    for (int i = 0; i < suppliersCount; i++) 
+        printf("%s%s%s::%s%hu%s\n", ANSI_YEL, suppliers[i].username, ANSI_RST, ANSI_GRN, suppliers[i].port, ANSI_RST);
+    printf("--------------------\n");
+}
 
 int makeBroadcast(struct sockaddr_in* addrOut, int port){
     int broadcastFd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -60,28 +93,37 @@ int connectServer(int fd, struct sockaddr_in server, int port) {
     return fd;
 }
 
-CLIResult handleCLI(RestaurantState *state){
+CLIResult handleCLI(){
     CLIResult answer;
     answer.result = 1;
     memset(answer.buffer, '\0', BUFFER_SIZE);
     read(0, &answer.buffer[ID_SIZE], BUFFER_SIZE - ID_SIZE);
     if (strncmp(&answer.buffer[ID_SIZE], "start working", strlen("start working")) == 0) {
-        if (*state == OPEN) {
+        if (state == OPEN) {
             logTerminalWarning("Restaurant is already open");
             // TODO log file
             answer.result = 0;
             return answer;
         }
-        *state = OPEN;
+        state = OPEN;
     }
-    else if (strncmp(&answer.buffer[ID_SIZE], "break", strlen("break")) == 0) {
-        if (*state == CLOSED) {
+    if (state == CLOSED) {
+        logTerminalError("Restaurant is closed");
+        answer.result = 0;
+        return answer;
+    }
+    if (strncmp(&answer.buffer[ID_SIZE], "break", strlen("break")) == 0) {
+        if (state == CLOSED) {
             logTerminalWarning("Restaurant is already closed");
             // TODO log file
             answer.result = 0;
             return answer;
         }
-        *state = CLOSED;
+        state = CLOSED;
+    }
+    else if (strncmp(&answer.buffer[ID_SIZE], "show suppliers", strlen("start working")) == 0) {
+        printSuppliers();
+        // TODO log file
     }
     return answer;
     // TODO log file
@@ -89,15 +131,24 @@ CLIResult handleCLI(RestaurantState *state){
 void handleIncomingBC(char* buffer, char* identifier){
     if (strncmp(buffer, identifier, strlen(identifier)) == 0) // check self broadcasting
         return;
-
+    char test[100];
+    memset(test, '\0', sizeof(test));
+    if (state == OPEN && strncmp(&buffer[ID_SIZE], "hello supplier", strlen("hello supplier")) == 0) {
+        strtok(&buffer[ID_SIZE], "-");
+        char* username = strtok(NULL, "-"); // username
+        char* port = strtok(NULL, "-");
+        if (!isSupplierUnique(username))
+            return;
+        
+        addSupplier(username, atoi(port));
+        return;
+    }
     write(0, buffer, BUFFER_SIZE);
 }
 
 int main(int argc, char const *argv[]) {
     CLIResult ans;
 
-
-    RestaurantState state = CLOSED;
     int tcpSock, bcSock, broadcast = 1, opt = 1;
     char buffer[1024] = {0};
     struct sockaddr_in bcAddress, tcpAddress;
@@ -123,13 +174,11 @@ int main(int argc, char const *argv[]) {
 
         select(bcSock + 1, &readfds, NULL, NULL, NULL);
         
-
         if (FD_ISSET(0, &readfds)) {
             memset(buffer, '\0', 1024);
-            ans = handleCLI(&state);
+            ans = handleCLI();
             if (ans.result == 1) {
                 memcpy(ans.buffer, username, ID_SIZE);
-                // write(0, ans.buffer, BUFFER_SIZE);
                 sendto(bcSock, ans.buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
             }
         }
@@ -138,6 +187,8 @@ int main(int argc, char const *argv[]) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
             handleIncomingBC(buffer, username);
+
+    
         }
     }
     // write(0, "Enter username: ", sizeof("Enter username: "));

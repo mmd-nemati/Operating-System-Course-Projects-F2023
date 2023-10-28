@@ -98,13 +98,11 @@ int main(int argc, char const *argv[]) {
 
         select(bcSock + 1, &readfds, NULL, NULL, NULL);
 
-
         if (FD_ISSET(0, &readfds)) {
             memset(buffer, 0, 1024);
             read(0, buffer+strlen(username), 1024-strlen(username));
             memcpy(buffer, username, strlen(username));
-
-                sendto(bcSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
+            sendto(bcSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
         }
 
         if (FD_ISSET(bcSock, &readfds)) {
