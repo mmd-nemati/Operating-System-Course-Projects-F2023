@@ -186,6 +186,10 @@ CLIResult handleCLI(){
         printOrders();
         // TODO log file
     }
+    else if (strncmp(&answer.buffer[ID_SIZE], "show sales history", strlen("show sales history")) == 0) {
+        printSales();
+        // TODO log file
+    }
     return answer;
     // TODO log file
 }
