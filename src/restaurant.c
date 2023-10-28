@@ -20,6 +20,12 @@ RestaurantState state = CLOSED;
 SupplierInfo suppliers[MAX_SUPPLIER];
 int suppliersCount = 0;
 
+OrderInfo orders[MAX_ORDER];
+int ordersCount = 0;
+
+SaleInfo sales[MAX_SALE];
+int salesCount = 0;
+
 int isSupplierUnique(const char *username) {
     for (int i = 0; i < suppliersCount; i++) {
         if (strcmp(suppliers[i].username, username) == 0) {
@@ -37,15 +43,66 @@ void addSupplier(const char *username, unsigned short port) {
     newSupplier->port = port;
 }
 
+void addOrder(const char *username, unsigned short port, const char *food) {
+    OrderInfo* newOrder = &orders[ordersCount];
+    ordersCount++;
+    memset(newOrder->username, '\0', ID_SIZE);
+    strcpy(newOrder->username, username);
+    newOrder->port = port;
+    memset(newOrder->food, '\0', MAX_FOOD_NAME);
+    strcpy(newOrder->food, food);
+}
+
+void addSale(const char *username, const char *food, OrderResult result) {
+    SaleInfo* newSale = &sales[salesCount];
+    salesCount++;
+    memset(newSale->username, '\0', ID_SIZE);
+    strcpy(newSale->username, username);
+    memset(newSale->food, '\0', MAX_FOOD_NAME);
+    strcpy(newSale->food, food);
+    newSale->result = result;
+}
+
 void printSuppliers() {
     if (suppliersCount == 0) {
-        printf("%sNo available suppliers%s\n", ANSI_RED, ANSI_RST);
+        printf("%sNo available supplier%s\n", ANSI_RED, ANSI_RST);
         return;
     }
     printf("--------------------\n");
     printf("<username>::<port>\n");
     for (int i = 0; i < suppliersCount; i++) 
         printf("%s%s%s::%s%hu%s\n", ANSI_YEL, suppliers[i].username, ANSI_RST, ANSI_GRN, suppliers[i].port, ANSI_RST);
+    printf("--------------------\n");
+}
+
+void printOrders() {
+    if (ordersCount == 0) {
+        printf("%sNo available order%s\n", ANSI_YEL, ANSI_RST);
+        return;
+    }
+    printf("--------------------\n");
+    printf("<username>::<port> --> <food>\n");
+    for (int i = 0; i < ordersCount; i++) 
+        printf("%s%s%s::%s%hu%s --> %s%s%s\n", ANSI_YEL, orders[i].username, ANSI_RST, ANSI_GRN,
+                     orders[i].port, ANSI_RST, ANSI_PUR, orders[i].food, ANSI_RST);
+    printf("--------------------\n");
+}
+
+void printSales() {
+    if (salesCount == 0) {
+        printf("%sNo available sale%s\n", ANSI_YEL, ANSI_RST);
+        return;
+    }
+    char *accStr = "accepted";
+    char *denStr = "rejected";
+    printf("--------------------\n");
+    printf("<username>--<food> --> <result>\n");
+    for (int i = 0; i < salesCount; i++)  {
+         printf("%s%s%s--%s%s%s --> \n", ANSI_YEL, sales[i].username, ANSI_RST, ANSI_GRN,
+                    sales[i].food, ANSI_RST);
+        (sales[i].result == ACCEPTED) ? pritnf("%s%s%s", ANSI_GRN, "accepted", ANSI_RST) :
+                                            pritnf("%s%s%s", ANSI_RED, "rejected", ANSI_RST);
+    }
     printf("--------------------\n");
 }
 
@@ -121,8 +178,12 @@ CLIResult handleCLI(){
         }
         state = CLOSED;
     }
-    else if (strncmp(&answer.buffer[ID_SIZE], "show suppliers", strlen("start working")) == 0) {
+    else if (strncmp(&answer.buffer[ID_SIZE], "show suppliers", strlen("show suppliers")) == 0) {
         printSuppliers();
+        // TODO log file
+    }
+    else if (strncmp(&answer.buffer[ID_SIZE], "show requests list", strlen("show requests list")) == 0) {
+        printOrders();
         // TODO log file
     }
     return answer;
