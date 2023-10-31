@@ -18,6 +18,8 @@
 #include "../lib/colors.h"
 #include "../lib/alarm.h"
 #include "../lib/tcp.h"
+#include "../lib/user.h"
+
         char identifier[100];
 RestaurantState state = CLOSED;
 SupplierInfo suppliers[MAX_SUPPLIER];
@@ -109,28 +111,6 @@ void printSales() {
     printf("--------------------\n");
 }
 
-int sendUsernameCheck(int bcFd, int tcpFd, struct sockaddr_in addr, 
-                         char *username, unsigned short tcpPort) {
-    char buffer[BUFFER_SIZE];
-    memset(buffer, '\0', BUFFER_SIZE);
-    // strncpy(username, username, strlen(username));
-    strncpy(buffer, identifier, ID_SIZE);
-    sprintf(&buffer[ID_SIZE], "username check-%s-%hu", username, tcpPort);
-    // write(0, buffer, 150);
-    sendto(bcFd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&addr, sizeof(addr));
-    signal(SIGALRM, alarm_handler);
-    siginterrupt(SIGALRM, 1);
-    alarm(2);
-    int clientFd = accClient(tcpFd);
-    alarm(0);
-    if (clientFd >= 0) {
-        logTerminalError("Username already used. Try again.");
-        return 1;
-    }
-    return 0;
-}
-
-// int handleUsernameCheck()
 
 int makeBroadcast(struct sockaddr_in* addrOut, int port){
     int broadcastFd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -149,22 +129,22 @@ int makeBroadcast(struct sockaddr_in* addrOut, int port){
     return broadcastFd;
 }
 
-int makeTCP(struct sockaddr_in* addrOut){
-    int tcpFd;
-    tcpFd = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in addr;
-    int reuseport = 1;
-    setsockopt(tcpFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
+// int makeTCP(struct sockaddr_in* addrOut){
+//     int tcpFd;
+//     tcpFd = socket(AF_INET, SOCK_STREAM, 0);
+//     struct sockaddr_in addr;
+//     int reuseport = 1;
+//     setsockopt(tcpFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
 
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(1236);
-    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
-    *addrOut = addr;
-    bind(tcpFd, (struct sockaddr *)&addr, sizeof(addr));
+//     addr.sin_family = AF_INET;
+//     addr.sin_port = htons(1236);
+//     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
+//     *addrOut = addr;
+//     bind(tcpFd, (struct sockaddr *)&addr, sizeof(addr));
     
-    listen(tcpFd, 4);
-    return tcpFd;
-}
+//     listen(tcpFd, 4);
+//     return tcpFd;
+// }
 
 int connectServer222(int fd, struct sockaddr_in server, int port) {
     
@@ -224,10 +204,14 @@ CLIResult handleCLI(char *username){
     return answer;
     // TODO log file
 }
-void handleIncomingBC(char* buffer){
+void handleIncomingBC(char* buffer, char* username){
     if (strncmp(buffer, identifier, strlen(identifier)) == 0) // check self broadcasting
         return; 
 
+    if (strncmp(&buffer[ID_SIZE], "username check", strlen("username check")) == 0) {
+        handleUsernameCheck(buffer, username);
+        return;
+    }
     if (state == OPEN && strncmp(&buffer[ID_SIZE], "hello supplier", strlen("hello supplier")) == 0) {
             strtok(&buffer[ID_SIZE], "-");
             char* username = strtok(NULL, "-"); // username
@@ -255,35 +239,26 @@ int main(int argc, char const *argv[]) {
     // // read(0, username, ID_SIZE);
     // // strncpy(username, username, strlen(username) - 1);
     // memcpy(username, "hamid", strlen("rest1"));
-    char username[100];
-    write(0, "Enter your username: ", strlen("Enter your username: "));
-    memset(username, '\0', ID_SIZE);
+    // memset(username, '\0', ID_SIZE);
     // read(0, username, ID_SIZE);
-    read(0, username, ID_SIZE);
+    // for (int i = 0; i < ID_SIZE; i++) 
+    //     if (username[i] == '\n') {
+    //         username[i] = '\0';
+    //         break;
+    //     }
+    // read(0, username, ID_SIZE);
             // write(0, "anomoly", 7);
 
-    for (int i = 0; i < ID_SIZE; i++) 
-        if (username[i] == '\n') {
-            username[i] = '\0';
-            break;
-        }
-    tcpSock = makeTCP(&tcpAddress);
+    tcpSock = makeTCP(&tcpAddress, 1236);
     bcSock = makeBroadcast(&bcAddress, 1234);
-    // setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
-    // setsockopt(tcpSock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
     bind(bcSock, (struct sockaddr *)&bcAddress, sizeof(bcAddress));
     // bind(tcpSock, (struct sockaddr *)&tcpSock, sizeof(tcpSock));
-    while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, 1236)) {
-        memset(username, '\0', ID_SIZE);
-        read(0, username, ID_SIZE);
-
-        for (int i = 0; i < ID_SIZE; i++) 
-            if (username[i] == '\n') {
-                username[i] = '\0';
-                break;
-            }
-    }
-    write(0, "welcome!\n", strlen("welcome!\n"));
+    char username[100];
+    getUsername(username);
+    while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
+        getUsername(username);
+    
+    write(0, ANSI_GRN "\tWelcome!\n\n", strlen("\tWelcome!\n\n") + strlen(ANSI_GRN) - 1);
     int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);
@@ -304,7 +279,7 @@ int main(int argc, char const *argv[]) {
         if (FD_ISSET(bcSock, &readfds)) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
-            handleIncomingBC(buffer);
+            handleIncomingBC(buffer, username);
         }
     }
     // write(0, "Enter username: ", sizeof("Enter username: "));

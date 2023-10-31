@@ -1,5 +1,25 @@
 #include "../lib/tcp.h"
 #include <stdio.h>
+
+int makeTCP(struct sockaddr_in* addrOut, unsigned short port) {
+    int tcpFd;
+    tcpFd = socket(AF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in addr;
+    int reuseport = 1;
+    setsockopt(tcpFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(0);
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
+    bind(tcpFd, (struct sockaddr *)&addr, sizeof(addr));
+    socklen_t addrLen = sizeof(addr);
+    getsockname(tcpFd, (struct sockaddr *)&addr, &addrLen);
+    listen(tcpFd, 4);
+    *addrOut = addr;
+    // printf("port %hu\n", htons(addr.sin_port));
+    return tcpFd;
+}
+
 int accClient(int server_fd) {
     int client_fd;
     struct sockaddr_in client_address;
