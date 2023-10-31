@@ -21,14 +21,14 @@
 
 char identifier[100];
 
-void sendHelloSupplier(int fd, struct sockaddr_in addr, char* buffer, char* username){
+void sendHelloSupplier(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, char* buffer, char* username){
     memset(buffer, '\0', BUFFER_SIZE);
     strncpy(buffer, identifier, ID_SIZE);
-    sprintf(&buffer[ID_SIZE], "hello supplier-%s-%hu", username, htons(addr.sin_port));
-    sendto(fd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&addr, sizeof(addr));
+    sprintf(&buffer[ID_SIZE], "hello supplier-%s-%hu", username, tcpPort);
+    sendto(fd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
 }
 
-void handleIncomingBC(int fd, struct sockaddr_in addr, char* buffer, char* username){
+void handleIncomingBC(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, char* buffer, char* username){
     if (strncmp(buffer, identifier, ID_SIZE) == 0) 
         return;
 
@@ -38,7 +38,7 @@ void handleIncomingBC(int fd, struct sockaddr_in addr, char* buffer, char* usern
     }
 
     if (strncmp(&buffer[ID_SIZE], "start working", strlen("start working")) == 0) {
-        sendHelloSupplier(fd, addr, buffer, username);
+        sendHelloSupplier(fd, bcAddress, tcpPort, buffer, username);
         return;
     }
 
@@ -63,7 +63,7 @@ int main(int argc, char const *argv[]) {
 
     write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
 
-    sendHelloSupplier(bcSock, bcAddress, buffer, username);
+    sendHelloSupplier(bcSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
         int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);
@@ -84,7 +84,7 @@ int main(int argc, char const *argv[]) {
         if (FD_ISSET(bcSock, &readfds)) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
-            handleIncomingBC(bcSock, bcAddress, buffer, username);
+            handleIncomingBC(bcSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
         }
     }
     // write(0, "Enter username: ", sizeof("Enter username: "));
