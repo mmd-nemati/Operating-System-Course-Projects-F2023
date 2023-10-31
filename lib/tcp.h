@@ -7,7 +7,7 @@
 #include <string.h>
 #include <asm/socket.h>
 
-int makeTCP(struct sockaddr_in* addrOut, unsigned short port);
+int makeTCP(struct sockaddr_in* addrOut);
 int accClient(int fd);
 int cnctServer(int port);
 

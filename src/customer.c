@@ -17,24 +17,9 @@
 #include "../lib/colors.h"
 #include "../lib/user.h"
 #include "../lib/tcp.h"
+#include "../lib/udp.h"
 
 char identifier[100];
-int makeBroadcast(struct sockaddr_in* addrOut){
-    int broadcastFd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (broadcastFd < 0) return broadcastFd;
-
-    struct sockaddr_in addr;
-    int broadcast = 1;
-    int reuseport = 1;
-    setsockopt(broadcastFd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
-    setsockopt(broadcastFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(1234);
-    addr.sin_addr.s_addr = inet_addr("255.255.255.255"); 
-    *addrOut = addr;
-    return broadcastFd;
-}
 
 void handleIncomingBC(char* buffer, char* username){
     if (strncmp(buffer, identifier, ID_SIZE) == 0) 
@@ -74,23 +59,16 @@ int main(int argc, char const *argv[]) {
     memset(identifier, '\0', sizeof(identifier));
     sprintf(identifier, "%d", getpid());
     
-    tcpSock = makeTCP(&tcpAddress, 1239);
-    bcSock = makeBroadcast(&bcAddress);
-    bind(bcSock, (struct sockaddr *)&bcAddress, sizeof(bcAddress));
-        // char identifier[100];
-    // char username[100];
-    // memcpy(username, "cust1", strlen("cust1"));
-    // memcpy(buffer, identifier, strlen(identifier));
-
-    // setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
-    // setsockopt(tcpSock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+    tcpSock = makeTCP(&tcpAddress);
+    bcSock = makeBroadcast(&bcAddress, 1234);
 
     char username[100];
     getUsername(username);
     while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
         getUsername(username);
 
-    write(0, ANSI_GRN "\tWelcome!\n\n", strlen("\tWelcome!\n\n") + strlen(ANSI_GRN) - 1);
+    write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
+
         int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);

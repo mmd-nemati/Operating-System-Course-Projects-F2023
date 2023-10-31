@@ -19,6 +19,7 @@
 #include "../lib/alarm.h"
 #include "../lib/tcp.h"
 #include "../lib/user.h"
+#include "../lib/udp.h"
 
         char identifier[100];
 RestaurantState state = CLOSED;
@@ -112,40 +113,6 @@ void printSales() {
 }
 
 
-int makeBroadcast(struct sockaddr_in* addrOut, int port){
-    int broadcastFd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (broadcastFd < 0) return broadcastFd;
-    
-    struct sockaddr_in addr;
-    int broadcast = 1;
-    int reuseport = 1;
-    setsockopt(broadcastFd, SOL_SOCKET, SO_BROADCAST, &broadcast, sizeof(broadcast));
-    setsockopt(broadcastFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(1234);
-    addr.sin_addr.s_addr = inet_addr("255.255.255.255"); 
-    *addrOut = addr;
-    return broadcastFd;
-}
-
-// int makeTCP(struct sockaddr_in* addrOut){
-//     int tcpFd;
-//     tcpFd = socket(AF_INET, SOCK_STREAM, 0);
-//     struct sockaddr_in addr;
-//     int reuseport = 1;
-//     setsockopt(tcpFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
-
-//     addr.sin_family = AF_INET;
-//     addr.sin_port = htons(1236);
-//     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
-//     *addrOut = addr;
-//     bind(tcpFd, (struct sockaddr *)&addr, sizeof(addr));
-    
-//     listen(tcpFd, 4);
-//     return tcpFd;
-// }
-
 int connectServer222(int fd, struct sockaddr_in server, int port) {
     
     server.sin_family = AF_INET; 
@@ -234,31 +201,16 @@ int main(int argc, char const *argv[]) {
     fd_set readfds;
     memset(identifier, '\0', sizeof(identifier));
     sprintf(identifier, "%d", getpid());
-    // char username[100];
-    // memset(username, '\0', ID_SIZE);
-    // // read(0, username, ID_SIZE);
-    // // strncpy(username, username, strlen(username) - 1);
-    // memcpy(username, "hamid", strlen("rest1"));
-    // memset(username, '\0', ID_SIZE);
-    // read(0, username, ID_SIZE);
-    // for (int i = 0; i < ID_SIZE; i++) 
-    //     if (username[i] == '\n') {
-    //         username[i] = '\0';
-    //         break;
-    //     }
-    // read(0, username, ID_SIZE);
-            // write(0, "anomoly", 7);
 
-    tcpSock = makeTCP(&tcpAddress, 1236);
+    tcpSock = makeTCP(&tcpAddress);
     bcSock = makeBroadcast(&bcAddress, 1234);
-    bind(bcSock, (struct sockaddr *)&bcAddress, sizeof(bcAddress));
-    // bind(tcpSock, (struct sockaddr *)&tcpSock, sizeof(tcpSock));
+
     char username[100];
     getUsername(username);
     while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
         getUsername(username);
     
-    write(0, ANSI_GRN "\tWelcome!\n\n", strlen("\tWelcome!\n\n") + strlen(ANSI_GRN) - 1);
+    write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
     int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);
