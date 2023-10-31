@@ -15,7 +15,7 @@
 
 #include "../lib/types.h"
 #include "../lib/colors.h"
-
+char identifier[100];
 int makeBroadcast(struct sockaddr_in* addrOut){
     int broadcastFd = socket(AF_INET, SOCK_DGRAM, 0);
     if (broadcastFd < 0) return broadcastFd;
@@ -28,7 +28,7 @@ int makeBroadcast(struct sockaddr_in* addrOut){
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(1234);
-    addr.sin_addr.s_addr = inet_addr("192.168.1.255");
+    addr.sin_addr.s_addr = inet_addr("255.255.255.255"); 
     *addrOut = addr;
     return broadcastFd;
 }
@@ -41,19 +41,21 @@ int makeTCP(struct sockaddr_in* addrOut){
     setsockopt(tcpFd, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport));
 
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(1234);
-    addr.sin_addr.s_addr = inet_addr("192.168.1.255");
+    addr.sin_port = htons(1236);
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     *addrOut = addr;
     return tcpFd;
 }
 
-void handleIncomingBC(char* buffer, char* identifier){
+void handleIncomingBC(char* buffer){
     if (strncmp(buffer, identifier, ID_SIZE) == 0) 
         return;
     
     if (strncmp(&buffer[ID_SIZE], "start working", strlen("start working")) == 0) {
+        strtok(&buffer[ID_SIZE], "-");
+        char* restName = strtok(NULL, "-"); // restaurant name
         write(1, ANSI_YEL, sizeof(ANSI_YEL) - 1);
-        write(1, buffer, ID_SIZE);
+        write(1, restName, ID_SIZE);
         write(1, ANSI_RST, sizeof(ANSI_RST) - 1);
         write(1, " restuarant" ANSI_GRN " opened\n" ANSI_RST, 
                 strlen(" restuarant opened\n") + sizeof(ANSI_YEL) + sizeof(ANSI_RST) - 2);
@@ -69,7 +71,7 @@ void handleIncomingBC(char* buffer, char* identifier){
 
         return;
     }
-    write(0, buffer, BUFFER_SIZE);
+    // write(0, buffer, BUFFER_SIZE);
 }
 
 int main(int argc, char const *argv[]) {
@@ -77,8 +79,8 @@ int main(int argc, char const *argv[]) {
     char buffer[1024] = {0};
     struct sockaddr_in bcAddress, tcpAddress;
     fd_set readfds;
-        char identifier[100];
-
+        // char identifier[100];
+    memset(identifier, '\0', sizeof(identifier));
     sprintf(identifier, "%d", getpid());
     char username[100];
     memcpy(username, "cust1", strlen("cust1"));
@@ -90,13 +92,13 @@ int main(int argc, char const *argv[]) {
     // setsockopt(tcpSock, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
     bind(bcSock, (struct sockaddr *)&bcAddress, sizeof(bcAddress));
+        int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);
         FD_SET(tcpSock, &readfds);
         FD_SET(bcSock, &readfds);
         FD_SET(0, &readfds);
-
-        select(bcSock + 1, &readfds, NULL, NULL, NULL);
+        select(maxSock + 1, &readfds, NULL, NULL, NULL);
 
         if (FD_ISSET(0, &readfds)) {
             memset(buffer, 0, 1024);
@@ -108,7 +110,7 @@ int main(int argc, char const *argv[]) {
         if (FD_ISSET(bcSock, &readfds)) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
-            handleIncomingBC(buffer, username);
+            handleIncomingBC(buffer);
         }
     }
     // write(0, "Enter username: ", sizeof("Enter username: "));

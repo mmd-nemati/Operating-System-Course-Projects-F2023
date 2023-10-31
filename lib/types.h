@@ -10,7 +10,7 @@
 #define MAX_FOOD_NAME   100
 #define BUF_CLI   128
 #define BUFFER_SIZE   1024
-#define BCAST_IP  "192.168.1.255"
+#define BCAST_IP  "255.255.255.255"
 #define TIMEOUT   60
 #define TOKEN_DEILIMITER "\n"
 #define MAX_SUPPLIER 100
