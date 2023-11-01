@@ -20,8 +20,11 @@
 #include "../lib/tcp.h"
 #include "../lib/user.h"
 #include "../lib/udp.h"
+#include "../lib/json.h"
+#include "../lib/utils.h"
 
-        char identifier[100];
+char identifier[100];
+Menu* menu;
 RestaurantState state = CLOSED;
 SupplierInfo suppliers[MAX_SUPPLIER];
 int suppliersCount = 0;
@@ -31,6 +34,16 @@ int ordersCount = 0;
 
 SaleInfo sales[MAX_SALE];
 int salesCount = 0;
+
+Ingredient ingredients[MAX_INGREDIENT];
+int ingredsCount = 0;
+
+void sendHelloRestaurant(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, char* buffer, char* username) {
+    memset(buffer, '\0', BUFFER_SIZE);
+    strncpy(buffer, identifier, ID_SIZE);
+    sprintf(&buffer[ID_SIZE], "hello restaurant-%s-%hu", username, tcpPort);
+    sendto(fd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
+}
 
 int isSupplierUnique(const char *username) {
     for (int i = 0; i < suppliersCount; i++) {
@@ -69,63 +82,6 @@ void addSale(const char *username, const char *food, OrderResult result) {
     newSale->result = result;
 }
 
-void printSuppliers() {
-    if (suppliersCount == 0) {
-        printf("%sNo available supplier%s\n", ANSI_RED, ANSI_RST);
-        return;
-    }
-    printf("--------------------\n");
-    printf("<username>::<port>\n");
-    for (int i = 0; i < suppliersCount; i++) 
-        printf("%s%s%s::%s%hu%s\n", ANSI_YEL, suppliers[i].username, ANSI_RST, ANSI_GRN, suppliers[i].port, ANSI_RST);
-    printf("--------------------\n");
-}
-
-void printOrders() {
-    if (ordersCount == 0) {
-        printf("%sNo available order%s\n", ANSI_YEL, ANSI_RST);
-        return;
-    }
-    printf("--------------------\n");
-    printf("<username>::<port> --> <food>\n");
-    for (int i = 0; i < ordersCount; i++) 
-        printf("%s%s%s::%s%hu%s --> %s%s%s\n", ANSI_YEL, orders[i].username, ANSI_RST, ANSI_GRN,
-                     orders[i].port, ANSI_RST, ANSI_PUR, orders[i].food, ANSI_RST);
-    printf("--------------------\n");
-}
-
-void printSales() {
-    if (salesCount == 0) {
-        printf("%sNo available sale%s\n", ANSI_YEL, ANSI_RST);
-        return;
-    }
-    char *accStr = "accepted";
-    char *denStr = "rejected";
-    printf("--------------------\n");
-    printf("<username>--<food> --> <result>\n");
-    for (int i = 0; i < salesCount; i++)  {
-         printf("%s%s%s--%s%s%s --> \n", ANSI_YEL, sales[i].username, ANSI_RST, ANSI_GRN,
-                    sales[i].food, ANSI_RST);
-        (sales[i].result == ACCEPTED) ? printf("%s%s%s", ANSI_GRN, "accepted", ANSI_RST) :
-                                            printf("%s%s%s", ANSI_RED, "rejected", ANSI_RST);
-    }
-    printf("--------------------\n");
-}
-
-
-int connectServer222(int fd, struct sockaddr_in server, int port) {
-    
-    server.sin_family = AF_INET; 
-    server.sin_port = htons(port); 
-    server.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-    if (connect(fd, (struct sockaddr *)&server, sizeof(server)) < 0) { // checking for errors
-        printf("Error in connecting to server\n");
-    }
-
-    return fd;
-}
-
 CLIResult handleCLI(char *username){
     CLIResult answer;
     answer.result = 1;
@@ -140,6 +96,7 @@ CLIResult handleCLI(char *username){
         }
         // sprintf(answer.buffer, "%sstart working-%s-",identifier, username);
         sprintf(&answer.buffer[ID_SIZE], "start working-%s-", username);
+        logTerminalInfo("Restaurant is now open");
         state = OPEN;
     }
     if (state == CLOSED) {
@@ -154,24 +111,34 @@ CLIResult handleCLI(char *username){
             answer.result = 0;
             return answer;
         }
+        logTerminalInfo("Restaurant is now closed");
         state = CLOSED;
     }
     else if (strncmp(&answer.buffer[ID_SIZE], "show suppliers", strlen("show suppliers")) == 0) {
-        printSuppliers();
+        answer.result = 0;
+        printSuppliers(suppliers, suppliersCount);
         // TODO log file
     }
     else if (strncmp(&answer.buffer[ID_SIZE], "show requests list", strlen("show requests list")) == 0) {
-        printOrders();
+        printOrders(orders, ordersCount);
         // TODO log file
     }
     else if (strncmp(&answer.buffer[ID_SIZE], "show sales history", strlen("show sales history")) == 0) {
-        printSales();
+        printSales(sales, salesCount);
+        // TODO log file
+    }
+    else if (strncmp(&answer.buffer[ID_SIZE], "show ingredients", strlen("show ingredients")) == 0) {
+        printIngredients(ingredients, ingredsCount);
+        // TODO log file
+    }
+    else if (strncmp(&answer.buffer[ID_SIZE], "show recipes", strlen("show recipes")) == 0) {
+        printRecipes(menu);
         // TODO log file
     }
     return answer;
     // TODO log file
 }
-void handleIncomingBC(char* buffer, char* username){
+void handleIncomingBC(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, char* buffer, char* username){
     if (strncmp(buffer, identifier, strlen(identifier)) == 0) // check self broadcasting
         return; 
 
@@ -189,12 +156,17 @@ void handleIncomingBC(char* buffer, char* username){
             addSupplier(username, atoi(port));
             return;
     }
+    else if (strncmp(&buffer[ID_SIZE], "hello customer", strlen("hello customer")) == 0) {
+        sendHelloRestaurant(fd, bcAddress, tcpPort, buffer, username);;
+        return;
+    }
     write(0, buffer, BUFFER_SIZE);
 }
 
 int main(int argc, char const *argv[]) {
     CLIResult ans;
-
+    menu = readJson("recipes.json");
+    // printf("sss %s\n", menu->foods[0]->ingredients[0].name);
     int tcpSock, bcSock, broadcast = 1, opt = 1;
     char buffer[1024] = {0};
     struct sockaddr_in bcAddress, tcpAddress;
@@ -211,6 +183,7 @@ int main(int argc, char const *argv[]) {
         getUsername(username);
     
     write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
+    sendHelloRestaurant(bcSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
     int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);
@@ -231,7 +204,7 @@ int main(int argc, char const *argv[]) {
         if (FD_ISSET(bcSock, &readfds)) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
-            handleIncomingBC(buffer, username);
+            handleIncomingBC(bcSock, bcAddress, htons(tcpAddress.sin_port),buffer, username);
         }
     }
     // write(0, "Enter username: ", sizeof("Enter username: "));

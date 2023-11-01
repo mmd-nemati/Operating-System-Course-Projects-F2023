@@ -16,6 +16,8 @@
 #define MAX_SUPPLIER 100
 #define MAX_ORDER 100
 #define MAX_SALE 100
+#define MAX_INGREDIENT 100
+#define FILE_MAX_READ 128
 
 typedef struct {
     char id[ID_SIZE];
@@ -54,6 +56,10 @@ typedef struct {
     char username[ID_SIZE];
     unsigned short port;
 } SupplierInfo;
+typedef struct {
+    char username[ID_SIZE];
+    unsigned short port;
+} RestaurantInfo;
 
 typedef struct {
     char username[ID_SIZE];
@@ -66,5 +72,23 @@ typedef struct {
     char food[MAX_FOOD_NAME];
     OrderResult result;
 } SaleInfo;
+
+typedef struct {
+    char name[MAX_FOOD_NAME];
+    int amount;
+} Ingredient;
+
+
+// typedef struct {};
+typedef struct{
+    char name[MAX_FOOD_NAME];
+    Ingredient ingredients[MAX_INGREDIENT];
+    int ingredsNum;
+} Food;
+
+typedef struct{
+    Food** foods;
+    int foodsNum;
+} Menu;
 
 #endif // __TYPES_H__
