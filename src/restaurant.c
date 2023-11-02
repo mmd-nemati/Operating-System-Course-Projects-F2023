@@ -76,8 +76,6 @@ int findOrderByPort(unsigned short port) {
         if (orders[i].port ==  port)
             if (orders[i].result == PENDING) 
                 return i;  // order is available, return index
-            else
-                break;
 
     return -1;  // order is not available
 }
