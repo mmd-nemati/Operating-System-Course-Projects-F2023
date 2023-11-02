@@ -6,7 +6,9 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <asm/socket.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-int makeBroadcast(struct sockaddr_in* addrOut, unsigned short port);
+int makeUDP(struct sockaddr_in* addrOut, unsigned short port);
 
 #endif // __UDP_H__

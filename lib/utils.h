@@ -14,12 +14,14 @@
 
 // #include "../lib/utils.h"
 char* strip(char *str);
+ReqIngredData* getReqIngredData();
+OrderFoodData* getReqFoodData();
+unsigned short extractPort(char *buffer, int tokNum);
 void printSuppliers(SupplierInfo *suppliers, int suppliersCount);
 void printOrders(OrderInfo *orders, int ordersCount);
 void printIngredients(Ingredient *ingredients, int IngredientsCount);
-void printSales(SaleInfo *sales, int salesCount);
+void printSales(OrderInfo *orders, int ordersCount);
 void printRecipes(Menu* menu);
 void printMenu(Menu* menu);
-ReqIngredData* getReqIngredData();
-struct termios blockTerminal();
+struct termios lockTerminal();
 #endif // __UTILS_H__

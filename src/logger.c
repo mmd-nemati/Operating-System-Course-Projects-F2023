@@ -53,13 +53,15 @@ void logTerminalError(const char* msg) {
 //     close(fd);
 // }
 
-// void logMsg(const char* msg) {
-//     int fd = open("log.txt", O_CREAT | O_APPEND | O_RDWR);
-//     write(fd, ANSI_WHT "[Message] " ANSI_RST, 10 + ANSI_LEN);
-//     write(fd, msg, strlen(msg));
-//     write(fd, "\n", 1);
-//     close(fd);
-// }
+void logFile(const char* msg, const char* username) {
+    int fd = open("log.txt", O_APPEND | O_CREAT | O_RDWR, 0777);
+    write(fd,"[User] ", 7);
+    write(fd, username, strlen(username));
+    write(fd," --> ", 5);
+    write(fd, msg, strlen(msg));
+    write(fd, "\n", 1);
+    close(fd);
+}
 
 // void logInfo(const char* msg) {
 //     int fd = open("log.txt", O_CREAT | O_APPEND | O_RDWR);

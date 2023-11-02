@@ -20,9 +20,13 @@
 #include "../lib/udp.h"
 #include "../lib/utils.h"
 #include "../lib/json.h"
+#include "../lib/logger.h"
 
 char identifier[100];
+char username[100];
 Menu* menu;
+int tcpSock, myTcpPort, timeOut = 0;
+
 RestaurantInfo restaurants[100];
 int restaurantsCount = 0;
 
@@ -59,7 +63,59 @@ void printRestaurants() {
         printf("%s%s%s::%s%hu%s\n", ANSI_YEL, restaurants[i].username, ANSI_RST, ANSI_GRN, restaurants[i].port, ANSI_RST);
     printf("--------------------\n");
 }
-CLIResult handleCLI(char *username){
+
+void alarmHandlerCust(int sig) {
+    timeOut = 1;
+}
+
+void handleFoodResponse(int restSock, OrderFoodData* food) {
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '\0', BUFFER_SIZE);
+    write(1, "waiting for the restaurant's response...\n", strlen("waiting for the restaurant's response...\n"));
+    signal(SIGALRM, alarmHandlerCust);
+    siginterrupt(SIGALRM, 1);
+    struct termios originalTerminos = lockTerminal();
+    alarm(40); // TODO change this
+    int newSock = accClient(tcpSock);
+    int bytesReceived = recv(newSock, buffer, BUFFER_SIZE, 0);
+    if (timeOut) {
+        memset(buffer, '\0', BUFFER_SIZE);
+        sprintf(&buffer[ID_SIZE], "time out order-%s-", username);
+        send(restSock, buffer, BUFFER_SIZE, 0);
+        logTerminalError("Time out!");
+        timeOut = 0;
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTerminos);
+        logFile("'order food' request time out!", username);
+        return;
+    }
+    alarm(0);
+    if (bytesReceived == 0) 
+        logTerminalWarning("restaurant closed!\n");
+    if (strncmp(&buffer[ID_SIZE], "accept", strlen("accept")) == 0) {
+        write(1, &buffer[ID_SIZE+6], BUFFER_SIZE - 106);
+
+    }
+    else if (strncmp(&buffer[ID_SIZE], "reject", strlen("reject")) == 0)
+        write(1, &buffer[ID_SIZE+6], BUFFER_SIZE - 106);
+
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTerminos);
+    logFile("'order food' response received", username);
+}
+
+void sendOrderFood() {
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '\0', BUFFER_SIZE);
+    OrderFoodData* data = getReqFoodData();
+    memcpy(data->username, username, 100);
+    int newSocket = cnctServer(data->port);
+    sprintf(&buffer[ID_SIZE], "order food-%hu-%s-%s-%hu-",data->port, data->username, data->food, myTcpPort);
+    memcpy(buffer, identifier, ID_SIZE);
+    send(newSocket, buffer, BUFFER_SIZE, 0);
+    logFile("'order food' request sent", username);
+    handleFoodResponse(newSocket, data);
+}
+
+CLIResult handleCLI() {
     CLIResult answer;
     answer.result = 1;
     memset(answer.buffer, '\0', BUFFER_SIZE);
@@ -67,104 +123,109 @@ CLIResult handleCLI(char *username){
     if (strncmp(&answer.buffer[ID_SIZE], "show restaurants", strlen("show restaurants")) == 0) {
         answer.result = 0;
         printRestaurants();
+        logFile("'show restaurants' command completed", username);
         // return answer;
     }
     else if (strncmp(&answer.buffer[ID_SIZE], "show menu", strlen("show menu")) == 0) {
         answer.result = 0;
         printMenu(menu);
-        // return answer;
+        logFile("'show menu' command completed", username);
+    }
+    else if (strncmp(&answer.buffer[ID_SIZE], "order food", strlen("order food")) == 0) {
+        answer.result = 0; // TODO enum
+        sendOrderFood();
+        logFile("'order food' command completed", username);
     }
     return answer;
-    // TODO log file
 }
-void handleUDP(char* buffer, char* username){
+void handleUDP(char* buffer){
     if (strncmp(buffer, identifier, ID_SIZE) == 0)  // check self broadcasting
         return;
 
     if (strncmp(&buffer[ID_SIZE], "username check", strlen("username check")) == 0) {
         handleUsernameCheck(buffer, username);
-        return;
+        logFile("'username check' command completed", username);
     }
-    if (strncmp(&buffer[ID_SIZE], "start working", strlen("start working")) == 0) {
+    else if (strncmp(&buffer[ID_SIZE], "start working", strlen("start working")) == 0) {
         strtok(&buffer[ID_SIZE], "-");
-        char* restName = strtok(NULL, "-"); // restaurant name
+        char* restName = strtok(NULL, "-");
         write(1, ANSI_YEL, sizeof(ANSI_YEL) - 1);
         write(1, restName, ID_SIZE);
         write(1, ANSI_RST, sizeof(ANSI_RST) - 1);
         write(1, " restuarant" ANSI_GRN " opened\n" ANSI_RST, 
                 strlen(" restuarant opened\n") + sizeof(ANSI_YEL) + sizeof(ANSI_RST) - 2);
-
-        return;
     }
-    if (strncmp(&buffer[ID_SIZE], "hello restaurant", strlen("hello restaurant")) == 0) {
+    else if (strncmp(&buffer[ID_SIZE], "hello restaurant", strlen("hello restaurant")) == 0) {
         strtok(&buffer[ID_SIZE], "-");
-        char* username = strtok(NULL, "-"); // username
+        char* username = strtok(NULL, "-");
         char* port = strtok(NULL, "-");
         if (!isRestaurantUnique(username))
             return;
         
         addRestaurant(username, atoi(port));
-        return;
     }
     else if (strncmp(&buffer[ID_SIZE], "break", strlen("break")) == 0) {
+        strtok(&buffer[ID_SIZE], "-");
+        char* restName = strtok(NULL, "-");
         write(1, ANSI_YEL, sizeof(ANSI_YEL) - 1);
-        write(1, buffer, ID_SIZE);
+        write(1, restName, ID_SIZE);
         write(1, ANSI_RST, sizeof(ANSI_RST) - 1);
         write(1, " restuarant" ANSI_RED " closed" ANSI_RST "\n", 
                 strlen(" restuarant closed\n") + sizeof(ANSI_RED) + sizeof(ANSI_RST) - 2);
-
-        return;
     }
-    // write(0, buffer, BUFFER_SIZE);
 }
 
 void initCust() {
     menu = readJson("recipes.json");
     memset(identifier, '\0', sizeof(identifier));
     sprintf(identifier, "%d", getpid());
+    memset(username, '\0', sizeof(identifier));
+    logFile("initialized", username);
 }
 
 int main(int argc, char const *argv[]) {
     CLIResult ans;
     initCust();
-    int tcpSock, bcSock, broadcast = 1, opt = 1;
+    int udpSock, maxSock;
     char buffer[1024] = {0};
     struct sockaddr_in bcAddress, tcpAddress;
-    fd_set readfds;
+    fd_set workingSet, masterSet;
     
     tcpSock = makeTCP(&tcpAddress);
-    bcSock = makeBroadcast(&bcAddress, 1234);
+    udpSock = makeUDP(&bcAddress, 1234);
+    myTcpPort = htons(tcpAddress.sin_port);
 
-    char username[100];
     getUsername(username);
-    while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
+    while(sendUsernameCheck(udpSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
         getUsername(username);
     write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
+    logFile("Logged in.", username);
 
+    sendHelloCustomer(udpSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
+    logFile("Sent hello customer.", username);
 
-    sendHelloCustomer(bcSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
-
-    int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
+    FD_ZERO(&masterSet);
+    FD_SET(STDIN_FILENO, &masterSet);
+    FD_SET(tcpSock, &masterSet);
+    FD_SET(udpSock, &masterSet);
+    maxSock = (udpSock > tcpSock) ? udpSock : tcpSock;
     while (1) {
-        FD_ZERO(&readfds);
-        FD_SET(tcpSock, &readfds);
-        FD_SET(bcSock, &readfds);
-        FD_SET(0, &readfds);
-        select(maxSock + 1, &readfds, NULL, NULL, NULL);
+        workingSet = masterSet;
+        select(maxSock + 1, &workingSet, NULL, NULL, NULL);
 
-        if (FD_ISSET(0, &readfds)) {
+        if (FD_ISSET(0, &workingSet)) {
             memset(buffer, '\0', 1024);
-            ans = handleCLI(username);
+            ans = handleCLI();
             if (ans.result == 1) {
                 memcpy(ans.buffer, identifier, ID_SIZE);
-                sendto(bcSock, ans.buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
+                sendto(udpSock, ans.buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
             }
         }
 
-        if (FD_ISSET(bcSock, &readfds)) {
+        else if (FD_ISSET(udpSock, &workingSet)) {
             memset(buffer, 0, 1024);
-            recv(bcSock, buffer, 1024, 0);
-            handleUDP(buffer, username);
+            recv(udpSock, buffer, 1024, 0);
+            handleUDP(buffer);
         }
     }
     return 0;

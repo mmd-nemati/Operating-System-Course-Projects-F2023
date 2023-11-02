@@ -44,8 +44,9 @@ typedef enum {
 } RestaurantState;
 
 typedef enum {
-    ACCEPTED = 0,
-    DENIED = 1
+    PENDING = 0,
+    ACCEPTED = 1,
+    DENIED = 2
 } OrderResult;
 
 typedef struct {
@@ -57,6 +58,7 @@ typedef struct {
     char username[ID_SIZE];
     unsigned short port;
 } SupplierInfo;
+
 typedef struct {
     char username[ID_SIZE];
     unsigned short port;
@@ -66,6 +68,7 @@ typedef struct {
     char username[ID_SIZE];
     unsigned short port;
     char food[MAX_FOOD_NAME];
+    OrderResult result;
 } OrderInfo;
 
 typedef struct {
@@ -80,13 +83,23 @@ typedef struct {
     int amount;
 } ReqIngredData;
 
+
+typedef struct {
+    char username[ID_SIZE];
+    char food[MAX_FOOD_NAME];
+    unsigned short port;
+} OrderFoodData;
+
+typedef struct {
+    char result[10];
+    unsigned short port;
+} ResponseOrderData;
+
 typedef struct {
     char name[MAX_FOOD_NAME];
     int amount;
 } Ingredient;
 
-
-// typedef struct {};
 typedef struct{
     char name[MAX_FOOD_NAME];
     Ingredient ingredients[MAX_INGREDIENT];

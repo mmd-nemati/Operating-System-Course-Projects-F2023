@@ -8,7 +8,7 @@ char* strip(char *str) {
         }
     return str;
 }
-struct termios blockTerminal() {
+struct termios lockTerminal() {
     struct termios originalTermios;
     struct termios modifiedTermios;
     if (tcgetattr(STDIN_FILENO, &originalTermios) == -1) {
@@ -29,21 +29,23 @@ ReqIngredData* getReqIngredData() {
     ReqIngredData *request = (ReqIngredData*)malloc(sizeof(ReqIngredData));
     char buffer[BUFFER_SIZE];
     char inp[BUFFER_SIZE];
-    memset(inp, '\0', BUFFER_SIZE);
 
     memset(buffer, '\0', BUFFER_SIZE);
+    memset(inp, '\0', BUFFER_SIZE);
     sprintf(inp, "--> %sport%s of supplier: ", ANSI_GRN, ANSI_RST);
     write(STDOUT_FILENO, inp, BUFFER_SIZE);
     read(0, buffer, BUFFER_SIZE);
     request->port = (unsigned short)atoi(strtok(buffer, "\n"));
 
     memset(buffer, '\0', BUFFER_SIZE);
+    memset(inp, '\0', BUFFER_SIZE);
     sprintf(inp, "--> name of %singredient%s: ", ANSI_YEL, ANSI_RST);
     write(STDOUT_FILENO, inp, BUFFER_SIZE);
     read(0, buffer, BUFFER_SIZE);
     strcpy(request->name, strtok(buffer, "\n"));
     
     memset(buffer, '\0', BUFFER_SIZE);
+    memset(inp, '\0', BUFFER_SIZE);
     sprintf(inp, "--> number of %singredient%s: ", ANSI_YEL, ANSI_RST);
     write(STDOUT_FILENO, inp, BUFFER_SIZE);
     read(0, buffer, BUFFER_SIZE);
@@ -51,6 +53,39 @@ ReqIngredData* getReqIngredData() {
 
     return request;
 }    
+
+OrderFoodData* getReqFoodData() {
+    OrderFoodData *request = (OrderFoodData*)malloc(sizeof(OrderFoodData));
+    char buffer[BUFFER_SIZE];
+    char inp[BUFFER_SIZE];
+    memset(inp, '\0', BUFFER_SIZE);
+
+    memset(buffer, '\0', BUFFER_SIZE);
+    memset(inp, '\0', BUFFER_SIZE);
+    sprintf(inp, "--> %sport%s of restaurant: ", ANSI_GRN, ANSI_RST);
+    write(STDOUT_FILENO, inp, BUFFER_SIZE);
+    read(0, buffer, BUFFER_SIZE);
+    request->port = (unsigned short)atoi(strtok(buffer, "\n"));
+
+    memset(buffer, '\0', BUFFER_SIZE);
+    memset(inp, '\0', BUFFER_SIZE);
+    sprintf(inp, "--> name of %sfood%s: ", ANSI_PUR, ANSI_RST);
+    write(STDOUT_FILENO, inp, BUFFER_SIZE);
+    read(0, buffer, BUFFER_SIZE);
+    strcpy(request->food, strtok(buffer, "\n"));
+
+    return request;
+}  
+
+unsigned short extractPort(char *buffer, int tokNum) {
+    char token[100];
+    strtok(&buffer[ID_SIZE], "-");
+    for (int i = 0; i < tokNum - 2; i++) 
+        strtok(NULL, "-");
+    
+    return (unsigned short)atoi(strtok(NULL, "-"));
+}
+
 void printSuppliers(SupplierInfo *suppliers, int suppliersCount) {
     char buffer[BUFFER_SIZE];
     if (suppliersCount == 0) {
@@ -70,14 +105,19 @@ void printSuppliers(SupplierInfo *suppliers, int suppliersCount) {
 
 void printOrders(OrderInfo *orders, int ordersCount) {
     char buffer[BUFFER_SIZE];
-    if (ordersCount == 0) {
-        sprintf(buffer, "%sNo available order%s\n", ANSI_YEL, ANSI_RST);
-        write(STDOUT_FILENO, buffer, strlen(buffer));
+    int any = 0;
+    for (int i = 0; i < ordersCount && orders[i].result == PENDING; i++) {
+        any = 1;
+        break;
+    }
+    if (any == 0) {
+        sprintf(buffer,"%sNo available order%s\n", ANSI_YEL, ANSI_RST);
+        write(STDOUT_FILENO, buffer,strlen(buffer));
         return;
     }
     write(STDOUT_FILENO, "--------------------\n", 21);
     write(STDOUT_FILENO, "<username>::<port> --> <food>\n", 30);
-    for (int i = 0; i < ordersCount; i++) {
+    for (int i = 0; i < ordersCount && orders[i].result == PENDING; i++) {
         sprintf(buffer, "%s%s%s::%s%hu%s --> %s%s%s\n", ANSI_YEL, orders[i].username, ANSI_RST, ANSI_GRN,
                 orders[i].port, ANSI_RST, ANSI_PUR, orders[i].food, ANSI_RST);
         write(STDOUT_FILENO, buffer, strlen(buffer));
@@ -102,9 +142,14 @@ void printIngredients(Ingredient *ingredients, int IngredientsCount) {
     write(STDOUT_FILENO, "--------------------\n", strlen("--------------------\n"));
 }
 
-void printSales(SaleInfo *sales, int salesCount) {
+void printSales(OrderInfo *orders, int ordersCount) {
     char buffer[BUFFER_SIZE];
-    if (salesCount == 0) {
+    int any = 0;
+    for (int i = 0; i < ordersCount && orders[i].result != PENDING; i++) {
+        any = 1;
+        break;
+    }
+    if (any == 0) {
         sprintf(buffer,"%sNo available sale%s\n", ANSI_YEL, ANSI_RST);
         write(STDOUT_FILENO, buffer,strlen(buffer));
         return;
@@ -113,12 +158,13 @@ void printSales(SaleInfo *sales, int salesCount) {
     char *denStr = "rejected";
     write(STDOUT_FILENO,"--------------------\n", strlen("--------------------\n"));
     write(STDOUT_FILENO,"<username>--<food> --> <result>\n",32);
-    for (int i = 0; i < salesCount; i++) {
-        sprintf(buffer,"%s%s%s--%s%s%s --> \n",ANSI_YEL,sales[i].username,
-                ANSI_RST,ANSI_GRN,sales[i].food,
+    for (int i = 0; i < ordersCount && orders[i].result != PENDING; i++) {
+        any = 1;
+        sprintf(buffer,"%s%s%s--%s%s%s --> ",ANSI_YEL,orders[i].username,
+                ANSI_RST, ANSI_PUR, orders[i].food,
                 ANSI_RST);
         write(STDOUT_FILENO,buffer,strlen(buffer));
-        if(sales[i].result == ACCEPTED)
+        if(orders[i].result == ACCEPTED)
             sprintf(buffer,"%s%s%s\n",ANSI_GRN,"accepted",ANSI_RST);
         else
             sprintf(buffer,"%s%s%s\n",ANSI_RED,"rejected",ANSI_RST);

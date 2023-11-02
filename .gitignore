@@ -51,7 +51,8 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Build files or other directories
+# Build files or others
 build
 0*
 *vscode
+log*

@@ -15,22 +15,21 @@ int makeTCP(struct sockaddr_in* addrOut) {
     socklen_t addrLen = sizeof(addr);
     getsockname(tcpFd, (struct sockaddr *)&addr, &addrLen);
     if(listen(tcpFd, 4) == -1) {
-        write(1, "ERROR in listen\n", strlen("ERROR in listen\n"));
+        write(2, "listen failed\n", strlen("listen failed\n"));
         exit(1);
     }
     *addrOut = addr;
-    // printf("port %hu\n", htons(addr.sin_port));
     return tcpFd;
 }
 
-int accClient(int server_fd) {
-    int client_fd;
-    struct sockaddr_in client_address;
-    int address_len = sizeof(client_address);
+int accClient(int serverFd) {
+    int clientFd;
+    struct sockaddr_in addr;
+    int addrLen = sizeof(addr);
     
-    client_fd = accept(server_fd, (struct sockaddr *)&client_address, (socklen_t*) &address_len);
+    clientFd = accept(serverFd, (struct sockaddr *)&addr, (socklen_t*) &addrLen);
 
-    return client_fd;
+    return clientFd;
 }
 
 int cnctServer(int port) {

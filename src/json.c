@@ -1,4 +1,5 @@
 #include "../lib/json.h"
+
 char* readJsonFile(const char* fileName) {
     ssize_t readSize;
     ssize_t totalReadSize = 0;
@@ -33,17 +34,11 @@ char* readJsonFile(const char* fileName) {
 Food* parseFood(cJSON* food_json) {
     Food* food = (Food*)malloc(sizeof(Food));
     assert(food != NULL);
-    // food->name = (char*)malloc(sizeof(char) * strlen(food_json->string));
-    // assert(food->name != NULL);
     strcpy(food->name, food_json->string);
     food->ingredsNum = cJSON_GetArraySize(food_json);
-    // food->ingredients = (Ingredient*)malloc(sizeof(Ingredient) * food->ingredsNum);
-    // assert(food->ingredients != NULL);
     cJSON* ingredient;
     int i = 0;
     cJSON_ArrayForEach(ingredient, food_json) {
-        // food->ingredients[i].name = (char*)malloc(sizeof(char) * strlen(ingredient->string));
-        // assert(food->ingredients[i].name != NULL);
         strcpy(food->ingredients[i].name, ingredient->string);
         food->ingredients[i].amount = ingredient->valueint;
         i++;
