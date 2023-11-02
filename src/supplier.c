@@ -131,7 +131,7 @@ int main(int argc, char const *argv[]) {
     fd_set workingSet, masterSet;
 
     tcpSock = makeTCP(&tcpAddress);
-    udpSock = makeUDP(&bcAddress, 1234);
+    udpSock = makeUDP(&bcAddress, (unsigned short)atoi(argv[1]));
 
     getUsername(username);
     while(sendUsernameCheck(udpSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))

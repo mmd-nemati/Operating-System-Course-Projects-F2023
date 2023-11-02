@@ -14,6 +14,7 @@
 
 // #include "../lib/utils.h"
 char* strip(char *str);
+int getNumOfOrdersResult(OrderInfo *orders, int ordersCount, OrderResult result);
 ReqIngredData* getReqIngredData();
 OrderFoodData* getReqFoodData();
 unsigned short extractPort(char *buffer, int tokNum);

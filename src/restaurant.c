@@ -132,7 +132,7 @@ void handleIngredResponse(int suppSock, ReqIngredData* ingred) {
     signal(SIGALRM, alarmHandlerRest);
     siginterrupt(SIGALRM, 1);
     struct termios originalTerminos = lockTerminal();
-    alarm(20); // TODO change this
+    alarm(90); 
     int newSock = accClient(tcpSock);
     int bytesReceived = recv(newSock, buffer, BUFFER_SIZE, 0);
     if (timeOut) {
@@ -191,6 +191,42 @@ ResponseOrderData* getResponseOrderData() {
     strcpy(response->result, strtok(buffer, "\n"));
 }
 
+int findFood(const char* name) {
+    for (int i = 0; i < menu->foodsNum; i++)
+        if (strcmp(menu->foods[i]->name, name) == 0)
+            return i; // found food
+
+    return -1; // not found
+}
+
+int checkEnoughIngred(const char* food) {
+    int ingredIdx, foodIdx = findFood(food);
+    if (foodIdx == -1) {
+        logTerminalError("Food not found.");
+        return 0;
+    }
+    for (int i = 0; i < menu->foods[foodIdx]->ingredsNum; i++) {
+        ingredIdx = findIngred(menu->foods[foodIdx]->ingredients[i].name);
+        // printf("ingred: %s menu: %d, now: %d\n", menu->foods[foodIdx]->ingredients[i].name,
+        //     menu->foods[foodIdx]->ingredients[i].amount, ingredients[ingredIdx].amount);
+
+        if (menu->foods[foodIdx]->ingredients[i].amount > ingredients[ingredIdx].amount) {
+            logTerminalError("Not enough ingredients.");
+            return 0;
+        }
+    }
+
+    return 1;
+}
+void makeFood(const char* food) {
+    int ingredIdx, foodIdx = findFood(food);
+    for (int i = 0; i < menu->foods[foodIdx]->ingredsNum; i++) {
+        ingredIdx = findIngred(menu->foods[foodIdx]->ingredients[i].name);
+        ingredients[ingredIdx].amount -= menu->foods[foodIdx]->ingredients[i].amount;
+    }
+}
+
+
 CLIResult handleCLI(){
     CLIResult answer;
     answer.result = 1;
@@ -219,14 +255,18 @@ CLIResult handleCLI(){
             answer.result = 0;
             return answer;
         }
+        if (getNumOfOrdersResult(orders, ordersCount, PENDING) != 0) {
+            logTerminalError("Restaurant has pending orders");
+            answer.result = 0;
+            return answer;
+        }
         sprintf(&answer.buffer[ID_SIZE], "break-%s-", username);
         logTerminalInfo("Restaurant is now closed");
         state = CLOSED;
     }
     /////////////////////
     else if (strncmp(&answer.buffer[ID_SIZE], "request ingredient", strlen("request ingredient")) == 0) {
-
-        answer.result = 0; // TODO enum
+        answer.result = 0; 
         sendReqIngred();
         logFile("'request ingredient' command completed", username);
     }
@@ -250,11 +290,13 @@ CLIResult handleCLI(){
         int custSock = cnctServer(data->port);
         logFile("Connected to the customer.", username);
         memcpy(buffer, identifier, ID_SIZE);
-        if (strncmp(data->result, "accept", strlen("accept")) == 0) {
+        if (strncmp(data->result, "accept", strlen("accept")) == 0 && checkEnoughIngred(orders[idx].food)) {
             write(1, "Accepted request!\n\n", strlen("Accepted request!\n\n"));
             sprintf(&buffer[ID_SIZE], "accept%s Restaurant accepted!\n", username);
             orders[idx].result = ACCEPTED;
-        } else {
+            makeFood(orders[idx].food);
+        } 
+        else {
             write(1, "Rejected request!\n\n", strlen("Rejected request!\n\n"));
             sprintf(&buffer[ID_SIZE], "reject%s Restaurant denied!\n", username);
             orders[idx].result = DENIED;
@@ -311,12 +353,6 @@ void handleUDP(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, cha
         logFile("Sent hello restaurant.", username);
         return;
     }
-    // else if (strncmp(&buffer[ID_SIZE], "order food", strlen("order food")) == 0) {
-    //     write(STDOUT_FILENO, "order food\n", 11);
-    //     // sendHelloRestaurant(fd, bcAddress, tcpPort, buffer, username);;
-    //     return;
-    // }
-    // write(0, buffer, BUFFER_SIZE);
 }
 
 void handleTCP(char *buffer) {
@@ -364,7 +400,7 @@ int main(int argc, char const *argv[]) {
     fd_set workingSet, masterSet;
 
     tcpSock = makeTCP(&tcpAddress);
-    udpSock = makeUDP(&bcAddress, 1234); // TODO -> argv[1]
+    udpSock = makeUDP(&bcAddress, (unsigned short)atoi(argv[1])); // TODO -> atoi(argv[1])
     myTcpPort = htons(tcpAddress.sin_port);
     
     getUsername(username);

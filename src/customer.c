@@ -75,7 +75,7 @@ void handleFoodResponse(int restSock, OrderFoodData* food) {
     signal(SIGALRM, alarmHandlerCust);
     siginterrupt(SIGALRM, 1);
     struct termios originalTerminos = lockTerminal();
-    alarm(40); // TODO change this
+    alarm(120); // TODO change this
     int newSock = accClient(tcpSock);
     int bytesReceived = recv(newSock, buffer, BUFFER_SIZE, 0);
     if (timeOut) {
@@ -192,7 +192,7 @@ int main(int argc, char const *argv[]) {
     fd_set workingSet, masterSet;
     
     tcpSock = makeTCP(&tcpAddress);
-    udpSock = makeUDP(&bcAddress, 1234);
+    udpSock = makeUDP(&bcAddress, (unsigned short)atoi(argv[1]));
     myTcpPort = htons(tcpAddress.sin_port);
 
     getUsername(username);
