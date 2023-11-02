@@ -68,8 +68,7 @@ Menu* parseMenu(cJSON* root) {
 }
 
 Menu* readJson(const char* jsonFile) {
-    const char* str = readJsonFile(jsonFile);
-    cJSON *root = cJSON_Parse(str);
+    cJSON *root = cJSON_Parse(readJsonFile(jsonFile));
     Menu* menu = parseMenu(root);
     cJSON_Delete(root);
     return menu;

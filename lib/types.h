@@ -9,7 +9,8 @@
 #define ID_SIZE   100
 #define MAX_FOOD_NAME   100
 #define BUF_CLI   128
-#define BUFFER_SIZE   1024
+#define BUFFER_SIZE   512
+#define MESSAGE_SIZE   1024
 #define BCAST_IP  "255.255.255.255"
 #define TIMEOUT   60
 #define TOKEN_DEILIMITER "\n"
@@ -72,6 +73,12 @@ typedef struct {
     char food[MAX_FOOD_NAME];
     OrderResult result;
 } SaleInfo;
+
+typedef struct {
+    unsigned short port;
+    char name[MAX_FOOD_NAME];
+    int amount;
+} ReqIngredData;
 
 typedef struct {
     char name[MAX_FOOD_NAME];

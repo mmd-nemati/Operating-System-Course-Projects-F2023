@@ -1,5 +1,5 @@
 #include "../lib/alarm.h"
 
-void alarm_handler(int sig) {
-    return;
-}
+// void alarmHandler(int sig) {
+//     return;
+// }

@@ -1,5 +1,56 @@
 #include "../lib/utils.h"
 
+char* strip(char *str) {
+    for (int i = 0; i < strlen(str); i++) 
+        if (str[i] == '\n') {
+            str[i] = '\0';
+            break;
+        }
+    return str;
+}
+struct termios blockTerminal() {
+    struct termios originalTermios;
+    struct termios modifiedTermios;
+    if (tcgetattr(STDIN_FILENO, &originalTermios) == -1) {
+        logTerminalError("tcgetattr");
+        exit(EXIT_FAILURE);
+    }
+    modifiedTermios = originalTermios;
+    modifiedTermios.c_lflag &= ~(ICANON | ECHO);
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &modifiedTermios) == -1) {
+        logTerminalError("tcsetattr");
+        exit(EXIT_FAILURE);
+    }
+    return originalTermios;
+}
+
+
+ReqIngredData* getReqIngredData() {
+    ReqIngredData *request = (ReqIngredData*)malloc(sizeof(ReqIngredData));
+    char buffer[BUFFER_SIZE];
+    char inp[BUFFER_SIZE];
+    memset(inp, '\0', BUFFER_SIZE);
+
+    memset(buffer, '\0', BUFFER_SIZE);
+    sprintf(inp, "--> %sport%s of supplier: ", ANSI_GRN, ANSI_RST);
+    write(STDOUT_FILENO, inp, BUFFER_SIZE);
+    read(0, buffer, BUFFER_SIZE);
+    request->port = (unsigned short)atoi(strtok(buffer, "\n"));
+
+    memset(buffer, '\0', BUFFER_SIZE);
+    sprintf(inp, "--> name of %singredient%s: ", ANSI_YEL, ANSI_RST);
+    write(STDOUT_FILENO, inp, BUFFER_SIZE);
+    read(0, buffer, BUFFER_SIZE);
+    strcpy(request->name, strtok(buffer, "\n"));
+    
+    memset(buffer, '\0', BUFFER_SIZE);
+    sprintf(inp, "--> number of %singredient%s: ", ANSI_YEL, ANSI_RST);
+    write(STDOUT_FILENO, inp, BUFFER_SIZE);
+    read(0, buffer, BUFFER_SIZE);
+    request->amount = atoi(strtok(buffer, "\n"));
+
+    return request;
+}    
 void printSuppliers(SupplierInfo *suppliers, int suppliersCount) {
     char buffer[BUFFER_SIZE];
     if (suppliersCount == 0) {

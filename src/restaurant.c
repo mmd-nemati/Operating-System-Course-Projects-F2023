@@ -25,6 +25,10 @@
 
 char identifier[100];
 Menu* menu;
+int tcpSock;
+unsigned short myTcpPort;
+int timeOut = 0;
+
 RestaurantState state = CLOSED;
 SupplierInfo suppliers[MAX_SUPPLIER];
 int suppliersCount = 0;
@@ -46,12 +50,19 @@ void sendHelloRestaurant(int fd, struct sockaddr_in bcAddress, unsigned short tc
 }
 
 int isSupplierUnique(const char *username) {
-    for (int i = 0; i < suppliersCount; i++) {
-        if (strcmp(suppliers[i].username, username) == 0) {
+    for (int i = 0; i < suppliersCount; i++)
+        if (strcmp(suppliers[i].username, username) == 0)
             return 0;  // Username is not unique
-        }
-    }
+
     return 1;  // Username is unique
+}
+
+int findIngred(const char *name) {
+    for (int i = 0; i < ingredsCount; i++)
+        if (strcmp(ingredients[i].name, name) == 0) 
+            return i;  // ingredient is available, return index
+
+    return -1;  // ingredient is not available
 }
 
 void addSupplier(const char *username, unsigned short port) {
@@ -60,6 +71,19 @@ void addSupplier(const char *username, unsigned short port) {
     memset(newSupplier->username, '\0', ID_SIZE);
     strcpy(newSupplier->username, username);
     newSupplier->port = port;
+}
+
+void addIngred(ReqIngredData* data) {
+    int idx = findIngred(data->name);
+    if (idx != -1) {
+        ingredients[idx].amount += data->amount;
+        return;
+    }
+    Ingredient* newIngredient = &ingredients[ingredsCount];
+    ingredsCount++;
+    memset(newIngredient->name, '\0', ID_SIZE);
+    strcpy(newIngredient->name, data->name);
+    newIngredient->amount = data->amount;
 }
 
 void addOrder(const char *username, unsigned short port, const char *food) {
@@ -81,6 +105,58 @@ void addSale(const char *username, const char *food, OrderResult result) {
     strcpy(newSale->food, food);
     newSale->result = result;
 }
+void alarmHandlerRest(int sig) {
+    timeOut = 1;
+}
+
+void handleIngredResponse(int suppSock, ReqIngredData* ingred) {
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '\0', BUFFER_SIZE);
+    write(1, "waiting for the supplier's response...\n", strlen("waiting for the supplier's response...\n"));
+    signal(SIGALRM, alarmHandlerRest);
+    siginterrupt(SIGALRM, 1);
+    struct termios originalTerminos = blockTerminal();
+    alarm(20); // TODO change this
+    int newSock = accClient(tcpSock);
+    int bytesReceived = recv(newSock, buffer, BUFFER_SIZE, 0);
+    if (timeOut) {
+        send(suppSock, "time out", strlen("time out"), 0);
+        logTerminalError("Time out!");
+        timeOut = 0;
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTerminos);
+        return;
+    }
+    alarm(0);
+    if (bytesReceived == 0) 
+        logTerminalWarning("supplier closed!\n");
+    // else 
+    //     write(1, &buffer[ID_SIZE], BUFFER_SIZE);
+    
+    // getIng(buffer, ingreq);
+    if (strncmp(&buffer[ID_SIZE], "accept", strlen("accept")) == 0) {
+        write(1, &buffer[ID_SIZE+6], BUFFER_SIZE - 106);
+        addIngred(ingred);
+
+    }
+    else if (strncmp(&buffer[ID_SIZE], "reject", strlen("reject")) == 0)
+        write(1, &buffer[ID_SIZE+6], BUFFER_SIZE - 106);
+
+    
+        
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &originalTerminos);
+}
+
+void sendReqIngred() {
+    char buffer[BUFFER_SIZE];
+    memset(buffer, '\0', BUFFER_SIZE);
+    ReqIngredData* data = getReqIngredData();
+    int newSocket = cnctServer(data->port);
+    sprintf(&buffer[ID_SIZE], "request ingredient-%hu-%s-%d-%hu-",data->port, data->name, data->amount, myTcpPort);
+    memcpy(buffer, identifier, ID_SIZE);
+    send(newSocket, buffer, BUFFER_SIZE, 0);
+    handleIngredResponse(newSocket, data);
+
+}
 
 CLIResult handleCLI(char *username){
     CLIResult answer;
@@ -94,7 +170,6 @@ CLIResult handleCLI(char *username){
             answer.result = 0;
             return answer;
         }
-        // sprintf(answer.buffer, "%sstart working-%s-",identifier, username);
         sprintf(&answer.buffer[ID_SIZE], "start working-%s-", username);
         logTerminalInfo("Restaurant is now open");
         state = OPEN;
@@ -114,6 +189,18 @@ CLIResult handleCLI(char *username){
         logTerminalInfo("Restaurant is now closed");
         state = CLOSED;
     }
+    /////////////////////
+    else if (strncmp(&answer.buffer[ID_SIZE], "request ingredient", strlen("request ingredient")) == 0) {
+
+        answer.result = 0; // TODO enum
+        sendReqIngred();
+        // strncpy(answer.buffer, identifier, ID_SIZE); 
+        // ID-request-port_yaroo-data_ha
+        // sprintf(&answer.buffer[ID_SIZE], "-request ingredient-%hu-%s-%d-", data->port, data->name, data->amount);
+    }
+    ///////////////////
+
+
     else if (strncmp(&answer.buffer[ID_SIZE], "show suppliers", strlen("show suppliers")) == 0) {
         answer.result = 0;
         printSuppliers(suppliers, suppliersCount);
@@ -138,7 +225,7 @@ CLIResult handleCLI(char *username){
     return answer;
     // TODO log file
 }
-void handleIncomingBC(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, char* buffer, char* username){
+void handleUDP(int fd, struct sockaddr_in bcAddress, unsigned short tcpPort, char* buffer, char* username){
     if (strncmp(buffer, identifier, strlen(identifier)) == 0) // check self broadcasting
         return; 
 
@@ -160,59 +247,100 @@ void handleIncomingBC(int fd, struct sockaddr_in bcAddress, unsigned short tcpPo
         sendHelloRestaurant(fd, bcAddress, tcpPort, buffer, username);;
         return;
     }
-    write(0, buffer, BUFFER_SIZE);
+    // write(0, buffer, BUFFER_SIZE);
+}
+
+void initRest() {
+    menu = readJson("recipes.json");
+    memset(identifier, '\0', sizeof(identifier));
+    sprintf(identifier, "%d", getpid());
 }
 
 int main(int argc, char const *argv[]) {
     CLIResult ans;
-    menu = readJson("recipes.json");
-    // printf("sss %s\n", menu->foods[0]->ingredients[0].name);
-    int tcpSock, bcSock, broadcast = 1, opt = 1;
-    char buffer[1024] = {0};
+    initRest();
+    int  udpSock, maxSock;
+    char buffer[BUFFER_SIZE] = {0};
     struct sockaddr_in bcAddress, tcpAddress;
-    fd_set readfds;
-    memset(identifier, '\0', sizeof(identifier));
-    sprintf(identifier, "%d", getpid());
+    fd_set workingSet, masterSet;
 
     tcpSock = makeTCP(&tcpAddress);
-    bcSock = makeBroadcast(&bcAddress, 1234);
-
+    udpSock = makeBroadcast(&bcAddress, 1234); // TODO -> argv[1]
+    myTcpPort = htons(tcpAddress.sin_port);
+    printf("myTcpPort: %hu\n", myTcpPort);
+    
     char username[100];
     getUsername(username);
-    while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
+    while(sendUsernameCheck(udpSock, tcpSock, bcAddress, username, identifier, myTcpPort))
         getUsername(username);
-    
     write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
-    sendHelloRestaurant(bcSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
-    int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
+    
+    sendHelloRestaurant(udpSock, bcAddress, myTcpPort, buffer, username);
+
+    FD_ZERO(&masterSet);
+    FD_SET(STDIN_FILENO, &masterSet);
+    FD_SET(tcpSock, &masterSet);
+    FD_SET(udpSock, &masterSet);
+    maxSock = udpSock;
     while (1) {
-        FD_ZERO(&readfds);
-        FD_SET(tcpSock, &readfds);
-        FD_SET(bcSock, &readfds);
-        FD_SET(0, &readfds);
-        select(maxSock + 1, &readfds, NULL, NULL, NULL);
+        workingSet = masterSet;
+
+        select(maxSock + 1, &workingSet, NULL, NULL, NULL);
         
-        if (FD_ISSET(0, &readfds)) {
-            memset(buffer, '\0', 1024);
+        if (FD_ISSET(0, &workingSet)) {
+            memset(buffer, '\0', BUFFER_SIZE);
             ans = handleCLI(username);
-            if (ans.result == 1) {
+            if (ans.result == 1) { // udp broadcast
                 memcpy(ans.buffer, identifier, ID_SIZE);
-                sendto(bcSock, ans.buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
+                sendto(udpSock, ans.buffer, BUFFER_SIZE, 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
+            }
+            else if (ans.result == 2) { // tcp connect
+                strtok(&ans.buffer[ID_SIZE], "-");
+                unsigned short port = (unsigned short)atoi(strtok(NULL, "-"));
+                int newSocket = cnctServer(port);
+                sprintf(&ans.buffer[strlen(ans.buffer)], "-%hu-",myTcpPort);
+                memcpy(ans.buffer, identifier, ID_SIZE);
+                send(newSocket, ans.buffer, strlen(ans.buffer), 0);
+
             }
         }
 
-        if (FD_ISSET(bcSock, &readfds)) {
-            memset(buffer, 0, 1024);
-            recv(bcSock, buffer, 1024, 0);
-            handleIncomingBC(bcSock, bcAddress, htons(tcpAddress.sin_port),buffer, username);
+        else if (FD_ISSET(udpSock, &workingSet)) {
+            memset(buffer, 0, BUFFER_SIZE);
+            recv(udpSock, buffer, BUFFER_SIZE, 0);
+            handleUDP(udpSock, bcAddress, htons(tcpAddress.sin_port),buffer, username);
+        }
+        else if (FD_ISSET(tcpSock, &workingSet)) { // new clinet
+            char msg[BUFFER_SIZE];
+            sprintf(msg, "in new client\n");
+            write(1, msg, strlen(msg));
+            int newSocket = accClient(tcpSock);
+            FD_SET(newSocket, &masterSet);
+            maxSock = (newSocket > maxSock) ? newSocket : maxSock;
+            // if (newSocket > maxSock) maxSock = newSocket;
+            sprintf(msg, "New client connected. fd = %d\n", newSocket);
+            write(1, msg, strlen(msg));
+        }
+        else {
+            for (int i = 0; i <= maxSock; i++) { // tcp get message
+                int bytes_received;
+                bytes_received = recv(i, buffer, BUFFER_SIZE, 0);
+                if (bytes_received == 0) {  // EOF
+                    char msg[MESSAGE_SIZE];
+                    sprintf(msg, "client fd = %d closed\n", i);
+                    write(1, msg, strlen(msg));
+                    close(i);
+                    FD_CLR(i, &masterSet);
+                    continue;
+                }
+                char msg[MESSAGE_SIZE];
+                sprintf(msg, "client %d: %s\n", i, buffer);
+                write(1, msg, MESSAGE_SIZE);
+                memset(buffer, '\0', 1024);
+            }
+                
+            
         }
     }
-    // write(0, "Enter username: ", sizeof("Enter username: "));
-    // memcpy(buffer+strlen(identifier), "hello", strlen("hello"));
-    // read(0, username, 100);
-    // memcpy(buffer+strlen(identifier)+strlen("hello"), username, strlen(username));
-    
-    // sendto(tcpSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
-
     return 0;
 }

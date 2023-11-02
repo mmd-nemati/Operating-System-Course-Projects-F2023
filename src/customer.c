@@ -77,9 +77,10 @@ CLIResult handleCLI(char *username){
     return answer;
     // TODO log file
 }
-void handleIncomingBC(char* buffer, char* username){
-    if (strncmp(buffer, identifier, ID_SIZE) == 0) 
+void handleUDP(char* buffer, char* username){
+    if (strncmp(buffer, identifier, ID_SIZE) == 0)  // check self broadcasting
         return;
+
     if (strncmp(&buffer[ID_SIZE], "username check", strlen("username check")) == 0) {
         handleUsernameCheck(buffer, username);
         return;
@@ -117,15 +118,19 @@ void handleIncomingBC(char* buffer, char* username){
     // write(0, buffer, BUFFER_SIZE);
 }
 
+void initCust() {
+    menu = readJson("recipes.json");
+    memset(identifier, '\0', sizeof(identifier));
+    sprintf(identifier, "%d", getpid());
+}
+
 int main(int argc, char const *argv[]) {
     CLIResult ans;
-    menu = readJson("recipes.json");
+    initCust();
     int tcpSock, bcSock, broadcast = 1, opt = 1;
     char buffer[1024] = {0};
     struct sockaddr_in bcAddress, tcpAddress;
     fd_set readfds;
-    memset(identifier, '\0', sizeof(identifier));
-    sprintf(identifier, "%d", getpid());
     
     tcpSock = makeTCP(&tcpAddress);
     bcSock = makeBroadcast(&bcAddress, 1234);
@@ -134,10 +139,12 @@ int main(int argc, char const *argv[]) {
     getUsername(username);
     while(sendUsernameCheck(bcSock, tcpSock, bcAddress, username, identifier, htons(tcpAddress.sin_port)))
         getUsername(username);
-
     write(0, ANSI_GRN "\tWelcome!\n\n" ANSI_RST, strlen("\tWelcome!\n\n") + ANSI_LEN);
+
+
     sendHelloCustomer(bcSock, bcAddress, htons(tcpAddress.sin_port), buffer, username);
-        int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
+
+    int maxSock = (bcSock > tcpSock) ? bcSock : tcpSock;
     while (1) {
         FD_ZERO(&readfds);
         FD_SET(tcpSock, &readfds);
@@ -157,15 +164,8 @@ int main(int argc, char const *argv[]) {
         if (FD_ISSET(bcSock, &readfds)) {
             memset(buffer, 0, 1024);
             recv(bcSock, buffer, 1024, 0);
-            handleIncomingBC(buffer, username);
+            handleUDP(buffer, username);
         }
     }
-    // write(0, "Enter username: ", sizeof("Enter username: "));
-    // memcpy(buffer+strlen(identifier), "hello", strlen("hello"));
-    // read(0, username, 100);
-    // memcpy(buffer+strlen(identifier)+strlen("hello"), username, strlen(username));
-    
-    // sendto(tcpSock, buffer, strlen(buffer), 0,(struct sockaddr *)&bcAddress, sizeof(bcAddress));
-
     return 0;
 }

@@ -10,8 +10,9 @@ void getUsername(char *username) {
             break;
         }
 }
-
-
+void alarmHandler(int sig) {
+    int timeOut = 1;
+}
 int sendUsernameCheck(int bcFd, int tcpFd, struct sockaddr_in addr, 
                          char *username, char *identifier, unsigned short tcpPort) {
     char buffer[BUFFER_SIZE];
@@ -21,7 +22,7 @@ int sendUsernameCheck(int bcFd, int tcpFd, struct sockaddr_in addr,
     sprintf(&buffer[ID_SIZE], "username check-%s-%hu", username, tcpPort);
     // write(0, &buffer[ID_SIZE], 150);
     sendto(bcFd, buffer, BUFFER_SIZE, 0,(struct sockaddr *)&addr, sizeof(addr));
-    signal(SIGALRM, alarm_handler);
+    signal(SIGALRM, alarmHandler);
     siginterrupt(SIGALRM, 1);
     alarm(2);
     int clientFd = accClient(tcpFd);

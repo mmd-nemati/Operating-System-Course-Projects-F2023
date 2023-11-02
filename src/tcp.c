@@ -14,7 +14,10 @@ int makeTCP(struct sockaddr_in* addrOut) {
     bind(tcpFd, (struct sockaddr *)&addr, sizeof(addr));
     socklen_t addrLen = sizeof(addr);
     getsockname(tcpFd, (struct sockaddr *)&addr, &addrLen);
-    listen(tcpFd, 4);
+    if(listen(tcpFd, 4) == -1) {
+        write(1, "ERROR in listen\n", strlen("ERROR in listen\n"));
+        exit(1);
+    }
     *addrOut = addr;
     // printf("port %hu\n", htons(addr.sin_port));
     return tcpFd;
@@ -40,7 +43,9 @@ int cnctServer(int port) {
     server_address.sin_port = htons(port); 
     server_address.sin_addr.s_addr = htonl(INADDR_LOOPBACK); 
 
-    connect(fd, (struct sockaddr *)&server_address, sizeof(server_address)); // checking for errors
+    if (connect(fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
+        printf("Error in connecting to server\n");
+    
 
     return fd;
 }
