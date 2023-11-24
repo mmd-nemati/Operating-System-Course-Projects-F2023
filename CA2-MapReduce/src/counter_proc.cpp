@@ -1,7 +1,8 @@
 #include <iostream>
 #include <unistd.h>
 
-#include "resource_counter.hpp"
+#include "../lib/resource_counter.hpp"
+#include "../lib/record_serializer.hpp"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -9,9 +10,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    ResourceCounter* counter = new ResourceCounter(argv[1]); 
-    std::vector<Record*> records = counter->read_records();
-
+    // ResourceCounter* counter = new ResourceCounter(argv[1]); 
+    // std::vector<Record*> records = counter->read_records();
+    
     // encodings
     // pipe constructions
 
