@@ -1,7 +1,6 @@
 #ifndef __RECORD_HPP__
 #define __RECORD_HPP__
 
-#include <string>
 #include <vector>
 
 class Record {
@@ -13,7 +12,6 @@ class Record {
         int month;
         int day;
         std::vector<int> usages;
-
 };
 
 #endif 
