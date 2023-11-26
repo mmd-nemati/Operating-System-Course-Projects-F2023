@@ -1,14 +1,14 @@
 #include "../lib/building.hpp"
 
-void Building::get_records(char* encoded_records, SourceType source) {
+void Building::save_records(char* encoded_records, ResourceType source) {
     switch (source) {
-        case (SourceType::GAS):
+        case (ResourceType::GAS):
             gas_records = RecordSerializer::decode(encoded_records);
             break;
-        case (SourceType::ELEC):
+        case (ResourceType::ELEC):
             elec_records = RecordSerializer::decode(encoded_records);
             break;
-        case (SourceType::WATER):
+        case (ResourceType::WATER):
             water_records = RecordSerializer::decode(encoded_records);
             break;
         
@@ -17,74 +17,66 @@ void Building::get_records(char* encoded_records, SourceType source) {
     }
 }
 
-std::vector<Record*> Building::select_record_type(SourceType source) {
-    std::vector<Record*> records;
+const std::vector<Record*>& Building::select_record_type(ResourceType source) {
     switch (source) {
-        case (SourceType::GAS):
-            records = gas_records;
+        case (ResourceType::GAS):
+            return gas_records;
             break;
-        case (SourceType::ELEC):
-            records = elec_records;
+        case (ResourceType::ELEC):
+            return elec_records;
             break;
-        case (SourceType::WATER):
-            records = water_records;
+        case (ResourceType::WATER):
+            return water_records;
             break;
         
         default:
-            break;
+            throw std::invalid_argument("Invalid source type");
     }
-
-    return records;
 }
 
-std::map<int, int> Building::calculate_monthly_usage(SourceType source) {
-    std::vector<Record*> records = select_record_type(source);
+int Building::calculate_monthly_usage(ResourceType source, int month) {
+    return util_calculate_monthly_usage(select_record_type(source), month);
 
-    std::map<int, int> monthly_usage;
-    for (Record* record : records) {
-        int daily_usage = 0;
-        for (int usage : record->usages) {
-            daily_usage += usage;
-        }
+    // const std::vector<Record*>& records = select_record_type(source);
+    // int monthly_usage = 0;
+    // for (const Record* record : records)
+    //     if (record->month == month)
+    //         for (int usage : record->usages) 
+    //             monthly_usage += usage;
 
-        monthly_usage[record->month] += daily_usage;
-    }
-
-    return monthly_usage;
+    // return monthly_usage;
 }
 
-std::map<int, int> Building::calculate_max_usage_hour(SourceType source) {
-    std::vector<Record*> records = select_record_type(source);
-   std::map<int, std::vector<int>> monthly_usage;
+int Building::calculate_max_usage_hour(ResourceType source, int month) {
+    return util_calculate_max_usage_hour(select_record_type(source), month);
+    // const std::vector<Record*>& records = select_record_type(source);
+    // std::vector<int> monthly_usage = std::vector<int>(6, 0);
 
-    for (int month = 1; month <= 12; month++) {
-        monthly_usage[month] = std::vector<int>(6, 0);
-    }
+    // for (const Record* record : records)
+    //     if (record->month == month)
+    //         for (int hour = 0; hour < record->usages.size(); hour++) 
+    //             monthly_usage[hour] += record->usages[hour];
 
-    for (Record* record : records) {
-        for (int hour = 0; hour < record->usages.size(); hour++) {
-            monthly_usage[record->month][hour] += record->usages[hour];
-        }
-    }
+    // auto it = std::max_element(monthly_usage.begin(), monthly_usage.end());
+    // int max_usage_hour = std::distance(monthly_usage.begin(), it);
 
-    std::map<int, int> max_usage_hour;
+    // return max_usage_hour;
+}
 
-    for (auto& pair : monthly_usage) {
-        int month = pair.first;
-        std::vector<int>& usages = pair.second;
+double Building::calculate_avg_usage(ResourceType source, int month) {
+    int usage = this->calculate_monthly_usage(source, month);
+    return (1.0 * usage) / (1.0 * MONTH_DAYS);
+}
 
-        int max_usage = usages[0];
-        int max_hour = 0;
-
-        for (int hour = 1; hour < usages.size(); hour++) {
-            if (usages[hour] > max_usage) {
-                max_usage = usages[hour];
-                max_hour = hour;
-            }
-        }
-
-        max_usage_hour[month] = max_hour;
-    }
-
-    return max_usage_hour;
+double Building::calculate_diff_max_avg(ResourceType source, int month) {
+    int max_hour = this->calculate_max_usage_hour(source, month);
+    const std::vector<Record*>& records = select_record_type(source);
+    
+    double max_hour_usage = 0;
+    double avg_usage = this->calculate_avg_usage(source, month);
+    for (const Record* record : records) 
+        if (record->month == month)
+            max_hour_usage += record->usages[max_hour];
+        
+    return max_hour_usage - avg_usage;
 }

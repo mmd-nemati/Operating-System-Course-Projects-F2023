@@ -4,21 +4,27 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include "../lib/record.hpp"
 #include "../lib/record_serializer.hpp"
 #include "../lib/types.hpp"
+#include "../lib/record_utils.hpp"
 
 class Building {
     public: 
         Building(int _id, std::string _name)
             : id(_id), name(_name) {};
         
-        void get_records(char* encoded_records, SourceType source);
-        std::map<int, int> calculate_monthly_usage(SourceType source);
-        std::map<int, int> calculate_max_usage_hour(SourceType source);
+        void save_records(char* encoded_records, ResourceType source);
+        int calculate_monthly_usage(ResourceType source, int month);
+        int calculate_max_usage_hour(ResourceType source, int month);
+        double calculate_avg_usage(ResourceType source, int month);
+        double calculate_diff_max_avg(ResourceType source, int month);
+        // send_records(type, month) to bills;
     private:
-        std::vector<Record*> select_record_type(SourceType source);
+        // std::vector<Record*> select_record_type(ResourceType source);
+        const std::vector<Record*>& select_record_type(ResourceType source);
         
         int id;
         std::string name;
