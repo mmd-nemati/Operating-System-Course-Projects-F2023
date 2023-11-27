@@ -1,19 +1,46 @@
+#include <iostream>
 #include "../lib/bills.hpp"
 
-void Bills::read_coeffs() {
-    io::CSVReader<5> in(path);
-    in.read_header(io::ignore_extra_column, "Year", "Month", "water", "gas", "electricity");
+Bills::Bills(int _id, std::string _csv_path) {
+    id = _id;
+    csv_path = _csv_path;
+    resource_type_map = {
+        {"gas", ResourceType::GAS},
+        {"water", ResourceType::WATER},
+        {"electricity", ResourceType::ELEC}
+    };
+}
 
+void Bills::read_coeffs() {
+    io::CSVReader<5> in(csv_path);
+    in.read_header(io::ignore_extra_column, "Year", "Month", "water", "gas", "electricity");
     int year, month, v1, v2, v3;
     int i = 0;
     while(in.read_row(year, month, v1, v2, v3)) {
-        resources_coeffs[i] = new ResourceCoefficient(year, month, v1, v2, v3);
+        resources_coeffs.push_back(new ResourceCoefficient(year, month, v1, v2, v3));
+        std::cout << resources_coeffs[i]->month << std::endl;
         i++;
     }
 }
 
-void Bills::save_records(char* encoded_records) {
+void Bills::save_records(const char* encoded_records) {
     records = RecordSerializer::decode(encoded_records);
+}
+
+RequestBillsData* Bills::decode_request(std::string request) {
+    RequestBillsData* data = new RequestBillsData();
+    std::istringstream iss(request);
+    std::string line;
+
+    std::getline(iss, line);
+    data->month = std::stoi(line);
+
+    std::getline(iss, line);
+    data->type = resource_type_map[line];
+
+    std::getline(iss, data->records);
+
+    return data;
 }
 
 double Bills::calculate_bill(ResourceType source, int month) {

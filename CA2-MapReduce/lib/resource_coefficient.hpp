@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "types.hpp"
-
+#include <iostream>
 class ResourceCoefficient {
     public: 
         ResourceCoefficient(int _year, int _month, int c1, int c2, int c3)

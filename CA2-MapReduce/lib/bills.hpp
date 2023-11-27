@@ -15,11 +15,11 @@
 
 class Bills {
     public: 
-        Bills(int _id, char* _path)
-            : id(_id), path(_path) {};
+        Bills(int _id, std::string _csv_path);
         void read_coeffs();
-        void save_records(char* encoded_records);
+        void save_records(const char* encoded_records);
         double calculate_bill(ResourceType source, int month);
+        RequestBillsData* decode_request(std::string request);
 
     private:
         double calculate_water_bill(int month);
@@ -27,8 +27,9 @@ class Bills {
         double calculate_elec_bill(int month);
         int get_coeff(int month);
 
+        std::map<std::string, ResourceType> resource_type_map;
         int id;
-        std::string path;
+        std::string csv_path;
         std::vector<ResourceCoefficient*> resources_coeffs;
         std::vector<Record*> records;
 };
