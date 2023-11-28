@@ -4,6 +4,8 @@
 #include "unnamed_pipe.hpp"
 #include "resource_counter.hpp"
 #include "record_serializer.hpp"
+#include "utils.hpp"
+
 
 class ResourceCounterProc {
     public:

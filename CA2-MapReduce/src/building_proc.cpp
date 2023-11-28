@@ -15,6 +15,7 @@ BuildingProc::BuildingProc(std::string _path, int _write_pipe_fd, int _read_pipe
     };
     building_server = std::make_shared<NamedPipeServer>(name);
     building_client = std::make_shared<NamedPipeClient>(BILLS_SERVER);
+    log(std::string("Building process " + name + " started").c_str());
     // std::cout << "Building process1111" << std::endl;
 
 }
@@ -29,6 +30,7 @@ BuildingProc::~BuildingProc() {
     close_fd(read_pipe_fd);
     NamedPipe::remove_pipe(name);
     NamedPipe::remove_pipe(BILLS_SERVER);
+    log(std::string("Building process " + name + " finished").c_str());
 }
 
 void BuildingProc::save_records() {
@@ -39,6 +41,7 @@ void BuildingProc::save_records() {
     building->save_records(data.c_str(), ResourceType::WATER);
     data = read_fd((*resources_read_pipes)[2][0]);
     building->save_records(data.c_str(), ResourceType::ELEC);
+    log(std::string("Building process " + name + " saved all records").c_str());
 }
 
 std::string BuildingProc::read_cmd_pipe() {
@@ -56,9 +59,9 @@ BuildingRequestData* BuildingProc::decode_cmd(std::string cmd) {
     BuildingRequestData* data = new BuildingRequestData();
     std::istringstream iss(cmd);
     std::string line;
-    data->report = "kill";
+    data->report = KILL_CMD;
     std::getline(iss, line);
-    if (line == "kill")
+    if (line == KILL_CMD)
         return data;
     data->month = std::stoi(line);
 
@@ -75,41 +78,52 @@ BuildingRequestData* BuildingProc::decode_cmd(std::string cmd) {
 }
 
 void BuildingProc::run() {
+    std::regex e ("(\\d+\\.\\d{2})"); 
+    std::smatch match;
+    std::string cmd, cost, rec_data;
     this->save_records();
-    std::string cmd = this->read_cmd_pipe();
+    cmd = this->read_cmd_pipe();
     BuildingRequestData* data = this->decode_cmd(cmd);
-    if (data->report == "kill") {
-        // building_client->send("kill");
+    if (data->report == KILL_CMD)
         return;
-    }
-    // std::cout << "aaa->>>>" << data->report << std::endl;
+    
+    
+    cost.append("== Report: " + data->report  + " ==\n");
     for (int i = 0; i < data->resources.size(); i++) {
         std::string encoded_records = building->get_records(resource_type_map[data->resources[i]]);
-        // std::cout << encoded_records << std::endl;
-        if (data->report == "bills") {
+        if (data->report == BILLS_REPORT) {
             building_client->send(REQUEST_BILLS_PREFIX + name + '\n' + 
-            std::to_string(data->month) + '\n' + data->resources[i] + '\n' + encoded_records);
-           std::string cost;
-            while(true) {
-                cost = building_server->receive();
-                if (cost.compare(0, 4, "cost") == 0) {
-                    int s = write_fd(cost.c_str(), cost.size(), write_pipe_fd);
-                    std::cout << "wrote back: " << s << "to: " << write_pipe_fd << std::endl;
-                    std::cout << "cost: " << cost << std::endl;
-
+                std::to_string(data->month) + '\n' + data->resources[i] + '\n' + encoded_records);
+           
+            while (true) {
+                rec_data = building_server->receive();
+                if (rec_data.compare(0, 4, "cost") == 0) {
+                    std::regex_search(rec_data, match, e);
+                    cost.append(data->resources[i] + " --> " + match.str() + "\n");
                     break;
                 }    
             }
         }
-
+        else if (data->report == WHOLE_USAGE_REPORT) {
+            rec_data = std::to_string(building->calculate_monthly_usage(resource_type_map[data->resources[i]], data->month));
+            cost.append(data->resources[i] + " --> " + rec_data + "\n");
+        }
+        else if (data->report == MAX_USAGE_HOUR_REPORT) {
+            rec_data = std::to_string(building->calculate_max_usage_hour(resource_type_map[data->resources[i]], data->month));
+            cost.append(data->resources[i] + " --> " + rec_data + "\n");
+        }
+        else if (data->report == DIFF_MAX_AVG_REPORT) {
+            rec_data = std::to_string(building->calculate_diff_max_avg(resource_type_map[data->resources[i]], data->month));
+            cost.append(data->resources[i] + " --> " + rec_data + "\n");
+        }
+        else if (data->report == AVERAGE_USAGE_REPORT) {
+            rec_data = std::to_string(building->calculate_avg_usage(resource_type_map[data->resources[i]], data->month));
+            cost.append(data->resources[i] + " --> " + rec_data + "\n");
+        }
+        log(std::string("Building process " + name + " made output: " + cost).c_str());
     }
-    // std::cout << "build broken" << std::endl;
-                    building_client->send("kill");
-    // if (cmd == KILL_PROCESS_MSG)
-    //     return;
-    // string report_parameter;
-    // vector<string> resources;
-    // main_cmd_decoder(cmd, resources, report_parameter);
-    // string building_record = create_record_building(report_parameter, resources);
-    // write_fd(building_record.c_str(), building_record.size(), write_pipe_fd);
+    write_fd(cost.c_str(), cost.size(), write_pipe_fd);
+    log(std::string("Building process " + name + " sent output to main").c_str());
+    building_client->send(KILL_CMD);
+    log(std::string("Building process " + name + " killed Bills process").c_str());
 }

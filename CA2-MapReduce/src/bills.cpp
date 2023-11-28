@@ -1,4 +1,3 @@
-#include <iostream>
 #include "../lib/bills.hpp"
 
 Bills::Bills(int _id, std::string _csv_path) {
@@ -20,11 +19,12 @@ void Bills::read_coeffs() {
         resources_coeffs.push_back(new ResourceCoefficient(year, month, v1, v2, v3));
         i++;
     }
+    log("Bills read coefficients from file");
 }
 
-void Bills::save_records(const char* encoded_records) {\
-    // std::cout << encoded_records << std::endl;
+void Bills::save_records(const char* encoded_records) {
     records = RecordSerializer::decode(encoded_records);
+    log("Bills recieved records");
 }
 
 RequestBillsData* Bills::decode_request(std::string request) {
@@ -66,25 +66,20 @@ double Bills::calculate_bill(ResourceType source, int month) {
 
 int Bills::get_coeff(int month) {
     
-    for (const ResourceCoefficient* row : resources_coeffs) {
-        // std::cout << "----- month: " << row->month << std::endl;
+    for (const ResourceCoefficient* row : resources_coeffs)
         if (row->month == month) {
             return row->coeffs[GAS_COEFF_INDEX];
             break;
         }
 
-    }
     throw std::runtime_error("Invalid month");
     return -1;
 }
 
 double Bills::calculate_gas_bill(int month) {
     double cost = 0;
-    // std::cout << "root usage: month" << records.size() << std::endl;
 
     for (const Record* record : records) {
-
-    // std::cout << "root usage day: " << record->day << std::endl;
         if (record->month == month)
             for (const int usage : record->usages)
                 cost += usage;
@@ -96,20 +91,14 @@ double Bills::calculate_gas_bill(int month) {
 double Bills::calculate_water_bill(int month) {
     double cost = 0;
     int max_hour = util_calculate_max_usage_hour(records, month);
-    for (const Record* record : records){
-    // std::cout << "root usage: " << records.size() << std::endl;
-
+    for (const Record* record : records)
         if (record->month == month)
             for (int hour = 0; hour < record->usages.size(); hour++) {
                 if (hour == max_hour)
                     cost += record->usages[hour] * WATER_OVERUSE_COEFF;
                 else
                     cost += record->usages[hour];
-
             }
-    }
-
-    
     return get_coeff(month) * cost;
 }
 

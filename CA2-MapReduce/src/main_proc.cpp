@@ -1,20 +1,24 @@
 #include "../lib/main_proc.hpp"
 
-MainProc::MainProc(std::string _buildings_dir_path) {
-    buildings_dir_path = _buildings_dir_path;
+MainProc::MainProc(std::string _buildings_dir) {
+    buildings_dir = _buildings_dir;
+    log(std::string("Main process started").c_str());
 }
 
 MainProc::~MainProc() {
     for (int i = 0; i < int(main_read_pipes.size()); i++) {
         close_fd(main_read_pipes[i][0]);
         close_fd(main_write_pipes[i][1]);
+        log(std::string("Main process closed pipes " + std::to_string(main_read_pipes[i][0]) + " and " +
+            std::to_string(main_write_pipes[i][1])).c_str());
     }
+    log(std::string("Main process finished").c_str());
 }
 
-void MainProc::create_building_names_map() {
+void MainProc::make_buildings_map() {
     int folder_count = 0;
 
-    for (auto &entry : fs::directory_iterator(buildings_dir_path)){
+    for (auto &entry : fs::directory_iterator(buildings_dir)){
         if (fs::is_directory(entry)) {
             main_read_pipes.push_back(create_pipe());
             main_write_pipes.push_back(create_pipe());
@@ -37,7 +41,7 @@ void MainProc::make_buildings() {
             close_fd(main_write_pipes[it->second][1]);
 
             execl(PATH_TO_BULDING_PROGRAM.c_str(), PATH_TO_BULDING_PROGRAM.c_str(), 
-            (buildings_dir_path + "/" + it->first).c_str(),
+            (buildings_dir + "/" + it->first).c_str(),
                   std::to_string(main_read_pipes[it->second][1]).c_str(),
                 std::to_string(main_write_pipes[it->second][0]).c_str(), nullptr);
 
@@ -47,12 +51,14 @@ void MainProc::make_buildings() {
             close_fd(main_read_pipes[it->second][1]);
             close_fd(main_write_pipes[it->second][0]);
         }
+        log(std::string("Main process made Building process " + it->first).c_str());
         ++it;
     }
 }
 
 void MainProc::make_bills_center() {
     int pid = fork();
+
     if (pid == -1)
         throw std::runtime_error("Fork failed bills");
 
@@ -61,76 +67,79 @@ void MainProc::make_bills_center() {
          std::to_string(main_read_pipes.size()).c_str(), nullptr);
         return;
     }
+    log(std::string("Main process made Bills process").c_str());
 }
 
-void MainProc::get_user_request(std::string &buidings_requested, std::string &resources_requested,
-        std::string &report_parameter_requested, std::string &month_requestd) {
-    std::cout << GET_BUILDINGS_PROMPT;
-    std::getline(std::cin, buidings_requested);
-    std::cout << GET_RESOURCES_PROMPT;
-    std::getline(std::cin, resources_requested);
-    std::cout << GET_REPORT_PROMPT;
-    std::getline(std::cin, report_parameter_requested);
-    std::cout << GET_MONTH_PROMPT;
-    std::getline(std::cin, month_requestd);
+void MainProc::get_req(std::string &req_buildings, std::string &req_resources,
+        std::string &req_reports, std::string &req_month) {
+    std::cout << ANSI_YEL << PROMPTS_DELIMITER << ANSI_GRN << GET_BUILDINGS_PROMPT << ANSI_RST;
+    std::getline(std::cin, req_buildings);
+
+    std::cout << ANSI_YEL << PROMPTS_DELIMITER << ANSI_GRN << GET_RESOURCES_PROMPT << ANSI_RST;
+    std::getline(std::cin, req_resources);
+    
+    std::cout << ANSI_YEL << PROMPTS_DELIMITER << ANSI_GRN << GET_REPORT_PROMPT << ANSI_RST;
+    std::getline(std::cin, req_reports);
+
+    std::cout << ANSI_YEL << PROMPTS_DELIMITER << ANSI_GRN << GET_MONTH_PROMPT << ANSI_RST;
+    std::getline(std::cin, req_month);
+    std::cout << ANSI_YEL << PROMPTS_DELIMITER << ANSI_RST;
+    log(std::string("Main process recieved inputs").c_str());
 }
 
-void MainProc::send_user_request_to_buildings(std::string &buidings_requested,std::string &resources_requested,
-    std::string &report_parameter_requested, std::string &month_requestd) {
+void MainProc::send_req(std::string &req_buildings,std::string &req_resources,
+    std::string &req_reports, std::string &req_month) {
     std::map<std::string, int>::iterator it = building_names_map.begin();
-
+    bool found;
     while (it != building_names_map.end()) {
-        std::stringstream stream(buidings_requested);
+        std::stringstream stream(req_buildings);
         std::string building;
-        bool found = false;
+        found = false;
         while (std::getline(stream, building, ' ')) {
             if (it->first == building) {
-                
                 found = true;
-                std::string msg = month_requestd + '\n' + resources_requested + '\n' + report_parameter_requested;
+                std::string msg = req_month + '\n' + req_resources + '\n' + req_reports;
                 int s = write_fd(msg.c_str(), msg.size(), main_write_pipes[it->second][1]);
-                // std::cout << "Building : " << s << std::endl;
+                log(std::string("Main process sent request to Building process " + it->first).c_str());
+
             }
         }
-        if (!found)
-            write_fd("kill", strlen("kill"), main_write_pipes[it->second][1]);
-        //     throw std::runtime_error("Building not found.");
-
+        if (!found) {
+            write_fd(KILL_CMD.c_str(), KILL_CMD.size(), main_write_pipes[it->second][1]);
+            log(std::string("Main process killed Building process " + it->first).c_str());
+        }
         ++it;
     }
 }
 
-void MainProc::recieve_reports()
-{
-    // while(true) {
+void MainProc::recieve_response() {
     std::map<std::string, int>::iterator it = building_names_map.begin();
-    while (it != building_names_map.end())
-    {
+    while (it != building_names_map.end()) {
         std::string data = read_fd(main_read_pipes[it->second][0]);
-        if (data != "")
-        {
-            std::cout << "== Building: " << it->first << " ==" << std::endl;
+        if (data != "") {
+            std::cout << ANSI_RED << "==== Building: " << ANSI_BLU << it->first << ANSI_RED << " ====" <<  ANSI_RST << std::endl;
             std::cout << data << std::endl;
+            log(std::string("Main process recieved response from Building process").c_str());
             return;
         }
         ++it;
     }
+}
 
-    // }
+void MainProc::ready() {
+    make_buildings_map();
+    this->make_bills_center();
+    this->make_buildings();
 }
 
 void MainProc::run() {
-    create_building_names_map();
-    this->make_bills_center();
-    this->make_buildings();
-    std::string buidings_requested, resources_requested, reports_requested, month_requested;
-    get_user_request(buidings_requested, resources_requested, reports_requested, month_requested);
+    this->ready();
+    std::string req_buildings, req_resources, reports_requested, month_requested;
 
-
-    send_user_request_to_buildings(buidings_requested, resources_requested, reports_requested, month_requested);
+    get_req(req_buildings, req_resources, reports_requested, month_requested);
+    send_req(req_buildings, req_resources, reports_requested, month_requested);
     for (int i = 0; i < int(main_read_pipes.size()) + 1; i++)
         wait(NULL);
-    std::cout << "--------------------------------asas" << std::endl;
-    // return;
-    recieve_reports();
+
+    recieve_response();
 }

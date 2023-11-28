@@ -12,3 +12,11 @@ std::string extract_building_name(std::string path) {
 
     return std::string();
 }
+
+void log(const char* msg) {
+    int fd = open("log.txt", O_APPEND | O_CREAT | O_RDWR, 0777);
+    write(fd,"-- ", 3);
+    write(fd, msg, strlen(msg));
+    write(fd, "\n", 1);
+    close(fd);
+}

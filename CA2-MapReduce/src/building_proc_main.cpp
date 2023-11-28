@@ -2,6 +2,7 @@
 
 int main(int argc, char const *argv[]) {
     if (argc != 4) {
+        
         exit(EXIT_FAILURE);
     }
 
@@ -24,8 +25,8 @@ int main(int argc, char const *argv[]) {
         }
         else
             close_fd(resources_pipes[i][1]);
+        log(std::string("Building made " + resource_types[i] + " process").c_str());
     }
-
     for (int i = 0; i < 3; i++)
         wait(NULL);
     

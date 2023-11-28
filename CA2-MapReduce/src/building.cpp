@@ -1,5 +1,5 @@
 #include "../lib/building.hpp"
-#include <iostream>
+
 void Building::save_records(const char* encoded_records, ResourceType source) {
     switch (source) {
         case (ResourceType::GAS):
@@ -41,31 +41,10 @@ std::string Building::get_records(ResourceType source) {
 
 int Building::calculate_monthly_usage(ResourceType source, int month) {
     return util_calculate_monthly_usage(select_record_type(source), month);
-
-    // const std::vector<Record*>& records = select_record_type(source);
-    // int monthly_usage = 0;
-    // for (const Record* record : records)
-    //     if (record->month == month)
-    //         for (int usage : record->usages) 
-    //             monthly_usage += usage;
-
-    // return monthly_usage;
 }
 
 int Building::calculate_max_usage_hour(ResourceType source, int month) {
     return util_calculate_max_usage_hour(select_record_type(source), month);
-    // const std::vector<Record*>& records = select_record_type(source);
-    // std::vector<int> monthly_usage = std::vector<int>(6, 0);
-
-    // for (const Record* record : records)
-    //     if (record->month == month)
-    //         for (int hour = 0; hour < record->usages.size(); hour++) 
-    //             monthly_usage[hour] += record->usages[hour];
-
-    // auto it = std::max_element(monthly_usage.begin(), monthly_usage.end());
-    // int max_usage_hour = std::distance(monthly_usage.begin(), it);
-
-    // return max_usage_hour;
 }
 
 double Building::calculate_avg_usage(ResourceType source, int month) {

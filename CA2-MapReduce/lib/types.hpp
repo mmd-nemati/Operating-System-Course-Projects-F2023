@@ -7,16 +7,25 @@
 
 constexpr int BUFFER_SIZE = 1024;
 
+
+const std::string WHOLE_USAGE_REPORT = std::string("whole-usage");
+const std::string AVERAGE_USAGE_REPORT = std::string("average-usage");
+const std::string MAX_USAGE_HOUR_REPORT = std::string("max-usage-hour");
+const std::string BILLS_REPORT = std::string("bills");
+const std::string DIFF_MAX_AVG_REPORT = std::string("diff-max-avg");
+const std::string KILL_CMD = std::string("kill");
+
+const std::string PROMPTS_DELIMITER = std::string("------------------------------------------------------------------------\n");
 const std::string GET_BUILDINGS_PROMPT = std::string(">> Enter building name:\n");
 const std::string GET_RESOURCES_PROMPT = std::string(">> Enter one or more resources, separated by '/' [gas | water | electricity]:\n");
 const std::string GET_REPORT_PROMPT = std::string(">> Enter only one of the reports [whole-usage | average-usage | max-usage-hour | bills | diff-max-avg]:\n");
 const std::string GET_MONTH_PROMPT = std::string(">> Enter one month for the report:\n");
 
-const std::string PATH_TO_BULDING_PROGRAM = std::string("building_proc_main.out");
-const std::string PATH_TO_RESOURCE_PROGRAM = std::string("resource_counter_proc_main.out");
-const std::string PATH_TO_BILLS_PROGRAM = std::string("bills_proc_main.out");
+const std::string PATH_TO_BULDING_PROGRAM = std::string("building.out");
+const std::string PATH_TO_RESOURCE_PROGRAM = std::string("resource_counter.out");
+const std::string PATH_TO_BILLS_PROGRAM = std::string("bills.out");
 
-const std::string BILLS_SERVER = std::string("billss2");
+const std::string BILLS_SERVER = std::string("billpipe");
 const std::string BILLS_COEFF_FILE_PATH = std::string("bills.csv");
 const std::string REQUEST_BILLS_PREFIX = std::string("request_bills\n");
 

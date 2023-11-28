@@ -9,6 +9,7 @@
 #include "types.hpp"
 #include "resource_coefficient.hpp"
 #include "record_utils.hpp"
+#include "utils.hpp"
 
 #define CSV_IO_NO_THREAD 
 #include "csv.h"

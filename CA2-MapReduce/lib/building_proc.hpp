@@ -11,6 +11,7 @@
 #include <sys/wait.h>
 #include <sstream>
 #include <memory>
+#include <regex>
 
 #include "building.hpp"
 #include "named_pipe.hpp"

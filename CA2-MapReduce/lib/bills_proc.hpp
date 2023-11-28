@@ -14,6 +14,8 @@
 
 #include "bills.hpp"
 #include "named_pipe.hpp"
+#include "utils.hpp"
+
 class BillsProc {
     public:
         BillsProc(int _building_count);

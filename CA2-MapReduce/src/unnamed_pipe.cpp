@@ -20,7 +20,6 @@ bool close_fd(int fd) {
 }
 
 int write_fd(const char *buffer, int size, int write_fd) {
-    // std::cout << "WROTE: s" << 1 << std::endl;
     int bytes_written = write(write_fd, buffer, size);
 
     if (bytes_written == -1) {

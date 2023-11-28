@@ -16,9 +16,9 @@ NULL_DEVICE = /dev/null
 
 
 OUT_EXE_MAIN := main.out
-OUT_EXE_BILLS := bills_proc_main.out
-OUT_EXE_BUILDING := building_proc_main.out
-OUT_EXE_RESOURCE_COUNTER := resource_counter_proc_main.out
+OUT_EXE_BILLS := bills.out
+OUT_EXE_BUILDING := building.out
+OUT_EXE_RESOURCE_COUNTER := resource_counter.out
 
 ALL_MAIN := $(OUT_EXE_MAIN) $(OUT_EXE_BILLS) $(OUT_EXE_BUILDING) $(OUT_EXE_RESOURCE_COUNTER)
 #----------------------------------------

@@ -1,5 +1,4 @@
 #include "../lib/named_pipe.hpp"
-#include <iostream>
 
 NamedPipe::NamedPipe(const std::string &pipe_name)
     : pipe_name_(pipe_name) {}
@@ -12,7 +11,6 @@ NamedPipeClient::NamedPipeClient(const std::string &pipe_name)
     : NamedPipe(pipe_name) {
     do {
         pipe_fd_ = open(pipe_name.c_str(), O_WRONLY);
-        // std::cout << "Named pipe " << pipe_name << std::endl;
     } while (pipe_fd_ == -1);
 }
 
@@ -23,22 +21,19 @@ void NamedPipeClient::send(const std::string &msg) {
 }
 
 NamedPipeServer::NamedPipeServer(const std::string &pipe_name)
-    : NamedPipe(pipe_name)
-{
+    : NamedPipe(pipe_name) {
     int res, fifo_fd;
-    if ((pipe_fd_ = open(pipe_name.c_str(), O_RDWR | O_NONBLOCK)) == -1)
-    {
+    if ((pipe_fd_ = open(pipe_name.c_str(), O_RDWR | O_NONBLOCK)) == -1) {
         fifo_fd = mkfifo(pipe_name.c_str(), 0777);
-        res = fcntl(fifo_fd, F_SETPIPE_SZ, 16384);
         if (fifo_fd != 0)
-        {
             throw std::runtime_error("Couldn't make FIFO file.");
-        }
+
         else
             pipe_fd_ = open(pipe_name_.c_str(), O_RDWR | O_NONBLOCK);
     }
     res = fcntl(pipe_fd_, F_SETPIPE_SZ, 16384);
-    // std::cout << "nice creating: " << pipe_fd_ <<  "   " << res << std::endl;
+    if (res == -1)
+        throw std::runtime_error("Couldn't increase pipe size.");
 
     if (pipe_fd_ == -1)
         throw std::runtime_error("Couldn't open server side of named pipe.(" + pipe_name + ")");
