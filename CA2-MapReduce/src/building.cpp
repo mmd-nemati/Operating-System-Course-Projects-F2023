@@ -1,6 +1,6 @@
 #include "../lib/building.hpp"
-
-void Building::save_records(char* encoded_records, ResourceType source) {
+#include <iostream>
+void Building::save_records(const char* encoded_records, ResourceType source) {
     switch (source) {
         case (ResourceType::GAS):
             gas_records = RecordSerializer::decode(encoded_records);
@@ -33,6 +33,11 @@ const std::vector<Record*>& Building::select_record_type(ResourceType source) {
             throw std::invalid_argument("Invalid source type");
     }
 }
+
+std::string Building::get_records(ResourceType source) {
+    return RecordSerializer::encode(select_record_type(source));
+}
+
 
 int Building::calculate_monthly_usage(ResourceType source, int month) {
     return util_calculate_monthly_usage(select_record_type(source), month);
@@ -80,3 +85,4 @@ double Building::calculate_diff_max_avg(ResourceType source, int month) {
         
     return max_hour_usage - avg_usage;
 }
+

@@ -10,7 +10,7 @@
 
 class ResourceCounter {
     public:
-        ResourceCounter(char* _path);
+        ResourceCounter(const char* _path);
         std::vector<Record*> read_records();
 
     private:

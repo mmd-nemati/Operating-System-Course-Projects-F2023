@@ -16,7 +16,8 @@ class Building {
         Building(int _id, std::string _name)
             : id(_id), name(_name) {};
         
-        void save_records(char* encoded_records, ResourceType source);
+        void save_records(const char* encoded_records, ResourceType source);
+        std::string get_records(ResourceType source);
         int calculate_monthly_usage(ResourceType source, int month);
         int calculate_max_usage_hour(ResourceType source, int month);
         double calculate_avg_usage(ResourceType source, int month);

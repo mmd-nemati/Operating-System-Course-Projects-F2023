@@ -18,12 +18,12 @@ void Bills::read_coeffs() {
     int i = 0;
     while(in.read_row(year, month, v1, v2, v3)) {
         resources_coeffs.push_back(new ResourceCoefficient(year, month, v1, v2, v3));
-        std::cout << resources_coeffs[i]->month << std::endl;
         i++;
     }
 }
 
-void Bills::save_records(const char* encoded_records) {
+void Bills::save_records(const char* encoded_records) {\
+    // std::cout << encoded_records << std::endl;
     records = RecordSerializer::decode(encoded_records);
 }
 
@@ -32,13 +32,16 @@ RequestBillsData* Bills::decode_request(std::string request) {
     std::istringstream iss(request);
     std::string line;
 
+    std::getline(iss, data->server_name);
+
     std::getline(iss, line);
     data->month = std::stoi(line);
 
     std::getline(iss, line);
     data->type = resource_type_map[line];
 
-    std::getline(iss, data->records);
+    while(std::getline(iss, line))
+        data->records.append(line + '\n');
 
     return data;
 }
@@ -62,22 +65,30 @@ double Bills::calculate_bill(ResourceType source, int month) {
 }
 
 int Bills::get_coeff(int month) {
-    for (const ResourceCoefficient* row : resources_coeffs)
+    
+    for (const ResourceCoefficient* row : resources_coeffs) {
+        // std::cout << "----- month: " << row->month << std::endl;
         if (row->month == month) {
             return row->coeffs[GAS_COEFF_INDEX];
             break;
         }
+
+    }
     throw std::runtime_error("Invalid month");
     return -1;
 }
 
 double Bills::calculate_gas_bill(int month) {
     double cost = 0;
+    std::cout << "root usage: month" << records.size() << std::endl;
 
-    for (const Record* record : records)
+    for (const Record* record : records) {
+
+    // std::cout << "root usage day: " << record->day << std::endl;
         if (record->month == month)
             for (const int usage : record->usages)
                 cost += usage;
+    }
 
     return get_coeff(month) * cost;
 }
@@ -85,13 +96,18 @@ double Bills::calculate_gas_bill(int month) {
 double Bills::calculate_water_bill(int month) {
     double cost = 0;
     int max_hour = util_calculate_max_usage_hour(records, month);
-    for (const Record* record : records)
+    for (const Record* record : records){
+    // std::cout << "root usage: " << records.size() << std::endl;
+
         if (record->month == month)
-            for (int hour = 0; hour < record->usages.size(); hour++)
+            for (int hour = 0; hour < record->usages.size(); hour++) {
                 if (hour == max_hour)
                     cost += record->usages[hour] * WATER_OVERUSE_COEFF;
                 else
                     cost += record->usages[hour];
+
+            }
+    }
 
     
     return get_coeff(month) * cost;

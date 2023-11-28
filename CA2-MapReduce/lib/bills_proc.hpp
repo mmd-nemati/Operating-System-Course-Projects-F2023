@@ -23,7 +23,7 @@ class BillsProc {
         int building_count;
         Bills* bills;
         std::shared_ptr<NamedPipeServer> bills_server;
-        std::shared_ptr<NamedPipeClient> bill_client;
+        std::shared_ptr<NamedPipeClient> bills_client;
 };
 
 #endif

@@ -5,7 +5,7 @@ DIR_OBJ   := $(DIR_BUILD)/obj
 DIR_DEP   := $(DIR_OBJ)/__dep__
 
 CC        = g++
-CPPFLAGS += -std=c++11
+CPPFLAGS += -std=c++17
 
 MKDIR  = mkdir -p
 RM     = rm -f
@@ -16,9 +16,11 @@ NULL_DEVICE = /dev/null
 
 
 OUT_EXE_MAIN := main.out
-# OUT_EXE_CUSTOMER := customer.out
-# OUT_EXE_SUPPLIER := supplier.out
+OUT_EXE_BILLS := bills_proc_main.out
+OUT_EXE_BUILDING := building_proc_main.out
+OUT_EXE_RESOURCE_COUNTER := resource_counter_proc_main.out
 
+ALL_MAIN := $(OUT_EXE_MAIN) $(OUT_EXE_BILLS) $(OUT_EXE_BUILDING) $(OUT_EXE_RESOURCE_COUNTER)
 #----------------------------------------
 
 VDIR = $(DIR_SRC)
@@ -26,23 +28,26 @@ VDIR = $(DIR_SRC)
 FILES   = $(patsubst src/%, %, $(shell find $(DIR_SRC) -name "*.cpp" -type f))
 FOLDERS = $(patsubst src/%, %, $(shell find $(DIR_SRC) -mindepth 1 -type d))
 
-FILES_NOMAIN = $(filter-out main.cpp, $(FILES))
+FILES_NOMAIN = $(filter-out main.cpp bills_proc_main.cpp counter_proc.cpp building_proc_main.cpp resource_counter_proc_main.cpp, $(FILES))
 
 FILES_DEP = $(patsubst %, $(DIR_DEP)/%.d, $(basename $(FILES)))
 FILES_OBJ = $(patsubst %, $(DIR_OBJ)/%.o, $(basename $(FILES_NOMAIN)))
 
 #----------------------------------------
 
-all: $(OUT_EXE_MAIN)
+all: $(ALL_MAIN)
 
 $(OUT_EXE_MAIN): $(DIR_OBJ)/main.o $(FILES_OBJ)
 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-# $(OUT_EXE_CUSTOMER): $(DIR_OBJ)/customer.o $(FILES_OBJ)
-# 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+$(OUT_EXE_BILLS): $(DIR_OBJ)/bills_proc_main.o $(FILES_OBJ)
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
-# $(OUT_EXE_SUPPLIER): $(DIR_OBJ)/supplier.o $(FILES_OBJ)
-# 	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+$(OUT_EXE_BUILDING): $(DIR_OBJ)/building_proc_main.o $(FILES_OBJ)
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
+
+$(OUT_EXE_RESOURCE_COUNTER): $(DIR_OBJ)/resource_counter_proc_main.o $(FILES_OBJ)
+	$(CC) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 DEPFLAGS    = -MT $@ -MMD -MP -MF $(DIR_DEP)/$*.dTMP
 POSTCOMPILE = @$(MOVE) $(DIR_DEP)/$*.dTMP $(DIR_DEP)/$*.d > $(NULL_DEVICE) && touch $@
