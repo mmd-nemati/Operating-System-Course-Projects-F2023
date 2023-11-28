@@ -102,18 +102,21 @@ void MainProc::send_user_request_to_buildings(std::string &buidings_requested,st
 
 void MainProc::recieve_reports()
 {
-    // map<string, int>::iterator it = building_names_map.begin();
-    // while (it != building_names_map.end())
-    // {
-    //     string data = read_fd(main_read_pipes[it->second][0]);
-    //     if (data != "")
-    //     {
-    //         cout << "== Building: " << it->first << " ==" << endl;
-    //         cout << data << endl;
-    //     }
-    //     ++it;
+    // while(true) {
+    std::map<std::string, int>::iterator it = building_names_map.begin();
+    while (it != building_names_map.end())
+    {
+        std::string data = read_fd(main_read_pipes[it->second][0]);
+        if (data != "")
+        {
+            std::cout << "== Building: " << it->first << " ==" << std::endl;
+            std::cout << data << std::endl;
+            return;
+        }
+        ++it;
+    }
+
     // }
-    return;
 }
 
 void MainProc::run() {

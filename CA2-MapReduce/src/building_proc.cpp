@@ -20,6 +20,14 @@ BuildingProc::BuildingProc(std::string _path, int _write_pipe_fd, int _read_pipe
 }
 
 BuildingProc::~BuildingProc() {
+        for (int i = 0; i < int(resources_read_pipes->size()); i++)
+    {
+        close_fd((*resources_read_pipes)[i][0]);
+    }
+
+    close_fd(write_pipe_fd);
+    close_fd(read_pipe_fd);
+    NamedPipe::remove_pipe(name);
     NamedPipe::remove_pipe(BILLS_SERVER);
 }
 
@@ -70,8 +78,10 @@ void BuildingProc::run() {
     this->save_records();
     std::string cmd = this->read_cmd_pipe();
     BuildingRequestData* data = this->decode_cmd(cmd);
-    if (data->report == "kill")
+    if (data->report == "kill") {
+        // building_client->send("kill");
         return;
+    }
     // std::cout << "aaa->>>>" << data->report << std::endl;
     for (int i = 0; i < data->resources.size(); i++) {
         std::string encoded_records = building->get_records(resource_type_map[data->resources[i]]);
@@ -83,13 +93,18 @@ void BuildingProc::run() {
             while(true) {
                 cost = building_server->receive();
                 if (cost.compare(0, 4, "cost") == 0) {
+                    int s = write_fd(cost.c_str(), cost.size(), write_pipe_fd);
+                    std::cout << "wrote back: " << s << "to: " << write_pipe_fd << std::endl;
                     std::cout << "cost: " << cost << std::endl;
+
                     break;
                 }    
             }
         }
 
     }
+    // std::cout << "build broken" << std::endl;
+                    building_client->send("kill");
     // if (cmd == KILL_PROCESS_MSG)
     //     return;
     // string report_parameter;

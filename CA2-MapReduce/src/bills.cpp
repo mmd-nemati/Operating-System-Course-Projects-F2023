@@ -80,7 +80,7 @@ int Bills::get_coeff(int month) {
 
 double Bills::calculate_gas_bill(int month) {
     double cost = 0;
-    std::cout << "root usage: month" << records.size() << std::endl;
+    // std::cout << "root usage: month" << records.size() << std::endl;
 
     for (const Record* record : records) {
 

@@ -17,6 +17,10 @@ void BillsProc::run() {
     int msg_recieved_count = 0;
     while (true) {
         std::string rec_data = bills_server->receive();
+        if (rec_data.compare(0, 4, "kill") == 0) {
+            // std::cout << "Bills btoken" << std::endl;
+            break;
+        }
     /*
       name
       month
@@ -35,7 +39,7 @@ void BillsProc::run() {
 
         bills_client = std::make_shared<NamedPipeClient>(data->server_name);
         bills_client->send(cost);
-        break;
+        // break;
     }
     }
 }
