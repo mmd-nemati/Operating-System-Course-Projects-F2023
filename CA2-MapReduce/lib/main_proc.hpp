@@ -27,6 +27,7 @@ class MainProc {
         void make_buildings_map();
         void make_buildings();
         void make_bills_center();
+        void show_buildings();
         void get_req(std::string &req_buildings, std::string &req_resources,
         std::string &req_reports, std::string &req_month);
 

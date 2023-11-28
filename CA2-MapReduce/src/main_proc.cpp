@@ -29,6 +29,16 @@ void MainProc::make_buildings_map() {
     }
 }
 
+void MainProc::show_buildings() {
+    std::map<std::string, int>::iterator it = building_names_map.begin();
+    std::cout << ANSI_YEL << PROMPTS_DELIMITER <<  ANSI_RED << "==== list of " << ANSI_BLU <<
+     building_names_map.size() << ANSI_RED << " buildings ====" << std::endl;
+    while (it != building_names_map.end()) {
+        std::cout << ANSI_BLU << "\t    " << it->first << ANSI_RST << std::endl;
+        ++it; 
+    }
+}
+
 void MainProc::make_buildings() {
     std::map<std::string, int>::iterator it = building_names_map.begin();
     while (it != building_names_map.end()) {
@@ -69,6 +79,7 @@ void MainProc::make_bills_center() {
     }
     log(std::string("Main process made Bills process").c_str());
 }
+
 
 void MainProc::get_req(std::string &req_buildings, std::string &req_resources,
         std::string &req_reports, std::string &req_month) {
@@ -117,7 +128,7 @@ void MainProc::recieve_response() {
     while (it != building_names_map.end()) {
         std::string data = read_fd(main_read_pipes[it->second][0]);
         if (data != "") {
-            std::cout << ANSI_RED << "==== Building: " << ANSI_BLU << it->first << ANSI_RED << " ====" <<  ANSI_RST << std::endl;
+            std::cout << ANSI_RED << "==== building: " << ANSI_BLU << it->first << ANSI_RED << " ====" <<  ANSI_RST << std::endl;
             std::cout << data << std::endl;
             log(std::string("Main process recieved response from Building process").c_str());
             return;
@@ -127,7 +138,8 @@ void MainProc::recieve_response() {
 }
 
 void MainProc::ready() {
-    make_buildings_map();
+    this->make_buildings_map();
+    this->show_buildings();
     this->make_bills_center();
     this->make_buildings();
 }
