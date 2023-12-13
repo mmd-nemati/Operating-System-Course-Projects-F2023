@@ -138,6 +138,13 @@ void init(char* input_file_name) {
     alloc_photo();
 }
 
+void flip_photo_filter() {
+    for (int i = 0; i < rows / 2; i++) {
+        for (int j = 0; j < cols; j++) {
+            std::swap(photo[i][j], photo[rows - i - 1][j]);
+        }
+    }
+}
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -148,6 +155,8 @@ int main(int argc, char* argv[]) {
 
     get_pixels_from_bmp24();
     // apply filters
+    flip_photo_filter();
+    // end filters
     write_out_bmp24();
 
     return 0;
