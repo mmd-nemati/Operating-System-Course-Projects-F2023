@@ -57,3 +57,4 @@ build
 *vscode
 log*
 tmp
+*.bmp
