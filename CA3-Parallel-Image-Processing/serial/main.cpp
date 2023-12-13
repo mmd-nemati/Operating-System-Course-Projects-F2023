@@ -1,6 +1,8 @@
 #include <fstream>
 #include <iostream>
 
+#define OUTPUT_FILE "output.bmp"
+
 typedef int LONG;
 typedef unsigned short WORD;
 typedef unsigned int DWORD;
@@ -29,6 +31,16 @@ typedef struct tagBITMAPINFOHEADER {
 } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
 #pragma pack(pop)
 
+struct Pixel {
+    unsigned char red;
+    unsigned char green;
+    unsigned char blue;
+};
+
+
+Pixel **photo;
+char *file_buffer;
+int buffer_size;
 int rows;
 int cols;
 
@@ -57,7 +69,7 @@ bool fill_and_allocate(char*& buffer, const char* file_name, int& rows, int& col
     return true;
 }
 
-void get_pixels_from_bmp24(int end, int rows, int cols, char* file_read_buffer) {
+void get_pixels_from_bmp24() {
     int count = 1;
     int extra = cols % 4;
     for (int i = 0; i < rows; i++) {
@@ -66,25 +78,25 @@ void get_pixels_from_bmp24(int end, int rows, int cols, char* file_read_buffer) 
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    // file_read_buffer[end - count] is the red value
+                    photo[i][j].red = file_buffer[buffer_size - count];
                     break;
                 case 1:
-                    // file_read_buffer[end - count] is the green value
+                    photo[i][j].green = file_buffer[buffer_size - count];
                     break;
                 case 2:
-                    // file_read_buffer[end - count] is the blue value
+                    photo[i][j].blue = file_buffer[buffer_size - count];
                     break;
                 }
-                // go to the next position in the buffer
+                count++;
             }
         }
     }
 }
 
-void write_out_bmp24(char* file_buffer, const char* name_of_file_to_create, int buffer_size) {
-    std::ofstream write(name_of_file_to_create);
+void write_out_bmp24() {
+    std::ofstream write(OUTPUT_FILE);
     if (!write) {
-        std::cout << "Failed to write " << name_of_file_to_create << std::endl;
+        std::cout << "Failed to write " << OUTPUT_FILE << std::endl;
         return;
     }
 
@@ -96,33 +108,47 @@ void write_out_bmp24(char* file_buffer, const char* name_of_file_to_create, int 
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    // write red value in file_buffer[buffer_size - count]
+                    file_buffer[buffer_size - count] = photo[i][j].red;
                     break;
                 case 1:
-                    // write green value in file_buffer[buffer_size - count]
+                    file_buffer[buffer_size - count] = photo[i][j].green;
                     break;
                 case 2:
-                    // write blue value in file_buffer[buffer_size - count]
+                    file_buffer[buffer_size - count] = photo[i][j].blue;
                     break;
                 }
-                // go to the next position in the buffer
+                count++;
             }
         }
     }
     write.write(file_buffer, buffer_size);
 }
 
+void alloc_photo() {
+    photo = new Pixel*[rows];
+    for (int i = 0; i < rows; i++)
+        photo[i] = new Pixel[cols];
+}
+
+void init(char* input_file_name) {
+    if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
+        std::cout << "ERROR: reading input file failed" << std::endl;
+        exit(1);
+    }
+    alloc_photo();
+}
+
+
 int main(int argc, char* argv[]) {
-    char* file_buffer;
-    int buffer_size;
-    if (!fill_and_allocate(file_buffer, argv[1], rows, cols, buffer_size)) {
-        std::cout << "File read error" << std::endl;
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " <input_file_name>" << std::endl;
         return 1;
     }
+    init(argv[1]);
 
-    // read input file
+    get_pixels_from_bmp24();
     // apply filters
-    // write output file
+    write_out_bmp24();
 
     return 0;
 }
