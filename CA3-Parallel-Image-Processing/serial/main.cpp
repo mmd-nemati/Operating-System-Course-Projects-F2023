@@ -1,7 +1,12 @@
 #include <fstream>
 #include <iostream>
+#include <algorithm>
 
-#define OUTPUT_FILE "output.bmp"
+constexpr char OUTPUT_FILE[] = "output.bmp";
+constexpr int MAX_RGB_VALUE = 255;
+constexpr int MIN_RGB_VALUE = 0;
+constexpr int GAUSSIAN_BLUR_KERNEL[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+constexpr double NORMALIZE_FACTOR = 1.0/16.0;
 
 typedef int LONG;
 typedef unsigned short WORD;
@@ -43,6 +48,7 @@ char *file_buffer;
 int buffer_size;
 int rows;
 int cols;
+
 
 bool fill_and_allocate(char*& buffer, const char* file_name, int& rows, int& cols, int& buffer_size) {
     std::ifstream file(file_name);
@@ -124,10 +130,15 @@ void write_out_bmp24() {
     write.write(file_buffer, buffer_size);
 }
 
-void alloc_photo() {
-    photo = new Pixel*[rows];
+Pixel** make_photo() {
+    Pixel** photo = new Pixel*[rows];
     for (int i = 0; i < rows; i++)
         photo[i] = new Pixel[cols];
+    return photo;
+}
+
+void alloc_photo() {
+    photo = make_photo();
 }
 
 void init(char* input_file_name) {
@@ -139,9 +150,37 @@ void init(char* input_file_name) {
 }
 
 void flip_photo_filter() {
-    for (int i = 0; i < rows / 2; i++) {
-        for (int j = 0; j < cols; j++) {
+    for (int i = 0; i < rows / 2; i++)
+        for (int j = 0; j < cols; j++)
             std::swap(photo[i][j], photo[rows - i - 1][j]);
+}
+
+
+void blur_photo_filter() {
+    Pixel** tmp = make_photo();
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            tmp[i][j] = photo[i][j];
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            int tmp_red = 0;
+            int tmp_green = 0;
+            int tmp_blue = 0;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    int x_neighbor = i + dx;
+                    int y_neighbor = j + dy;
+                    if (x_neighbor >= 0 && x_neighbor < rows && y_neighbor >= 0 && y_neighbor < cols) {
+                        tmp_red += int(tmp[x_neighbor][y_neighbor].red) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_green += int(tmp[x_neighbor][y_neighbor].green) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_blue += int(tmp[x_neighbor][y_neighbor].blue) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                    }
+                }
+            }
+            photo[i][j].red = std::clamp(tmp_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].green = std::clamp(tmp_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].blue = std::clamp(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
         }
     }
 }
@@ -156,7 +195,8 @@ int main(int argc, char* argv[]) {
     get_pixels_from_bmp24();
     // apply filters
     flip_photo_filter();
-    // end filters
+    blur_photo_filter();
+    // end filters0
     write_out_bmp24();
 
     return 0;
