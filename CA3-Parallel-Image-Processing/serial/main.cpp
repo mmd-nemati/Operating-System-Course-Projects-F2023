@@ -255,7 +255,10 @@ int main(int argc, char* argv[]) {
     auto draw_lines_end = TIME();
     std::cout << "Lines: " << MILLISEC(draw_lines_end - draw_lines_start)  << " ms" << std::endl;
 
+    auto write_file_start = TIME();
     write_out_bmp24();
+    auto write_file_end = TIME();
+    std::cout << "Write: " << MILLISEC(write_file_end - write_file_start) << " ms" << std::endl;
 
     auto end = TIME();
     std::cout << "Execution: " << MILLISEC(end - start)  << " ms" << std::endl;
