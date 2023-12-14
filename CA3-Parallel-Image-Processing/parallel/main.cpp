@@ -55,6 +55,7 @@ char *file_buffer;
 int buffer_size;
 int rows;
 int cols;
+float slopes[3][2];
 
 
 bool fill_and_allocate(char*& buffer, const char* file_name, int& rows, int& cols, int& buffer_size) {
@@ -128,13 +129,13 @@ void* write_out_bmp24(void* tid) {
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    file_buffer[buffer_size - count] = photo[i][j].red;
-                    break;
-                case 1:
                     file_buffer[buffer_size - count] = photo[i][j].green;
                     break;
-                case 2:
+                case 1:
                     file_buffer[buffer_size - count] = photo[i][j].blue;
+                    break;
+                case 2:
+                    file_buffer[buffer_size - count] = photo[i][j].red;
                     break;
                 }
                 count++;
@@ -167,6 +168,18 @@ void* save_prev_photo(void *tid) {
     pthread_exit(NULL);
 }
 
+
+
+void fill_slopes() {
+    int mid_row = rows / 2;
+    int mid_col = cols / 2;
+    float slope1 = -(float)(mid_row) / (float)(mid_col);
+    float slope2 = -(float)(rows) / (float)(cols);
+    slopes[0][0] = slope1; slopes[0][1] = mid_row;
+    slopes[1][0] = slope1; slopes[1][1] = mid_row + rows;
+    slopes[2][0] = slope2; slopes[2][1] = rows;
+}
+
 void init(char* input_file_name) {
     if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
         std::cout << "ERROR: reading input file failed" << std::endl;
@@ -174,6 +187,7 @@ void init(char* input_file_name) {
     }
     alloc_photo();
     prev = make_photo();
+    fill_slopes();
 }
 
 void* flip_photo_filter(void* tid) {
@@ -239,33 +253,37 @@ void* purple_haze_filter(void* tid) {
 void* draw_lines_filter(void* tid) {
     int mid_row = rows / 2;
     int mid_col = cols / 2;
-    
-    float slope1 = -(float)(mid_row) / (float)(mid_col);
-    float slope2 = -(float)(rows) / (float)(cols);
+    long thread_id = (long)tid;
 
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j < cols; j++)
-            if (EQ(j * slope1 + mid_row, float(i)) || EQ(j * slope1 + mid_row + rows, float(i)) || EQ(j * slope2 + rows, float(i))) {
+    int start_row = (thread_id == 0 || thread_id == 2) ? 0 : (mid_row);
+    int end_row = (thread_id == 0) ? mid_row : rows;
+    int start_col = (thread_id == 0 || thread_id == 2) ? 0 : (mid_col);
+    int end_col = (thread_id == 0) ? (mid_col) : cols;
+
+    for (int i = start_row; i < end_row; i++)
+        for (int j = start_col; j < end_col; j++)
+            if (EQ(j * slopes[thread_id][0] + slopes[thread_id][1], float(i))) {
                 photo[i][j].red = MAX_RGB_VALUE;
                 photo[i][j].green = MAX_RGB_VALUE;
                 photo[i][j].blue = MAX_RGB_VALUE;
             }
-      pthread_exit(NULL);
+
+    pthread_exit(NULL);
 }
 
 
-void handle_threads(void* (*func)(void*)) {
-    pthread_t threads[NUMBER_OF_THREADS];
+void handle_threads(void* (*func)(void*), int num_tr = NUMBER_OF_THREADS) {
+    pthread_t threads[num_tr];
     int res;
     long t;
-    for (t = 0; t < NUMBER_OF_THREADS; t++) {
+    for (t = 0; t < num_tr; t++) {
         res = pthread_create(&threads[t], NULL, func, (void *)t);
         if (res) {
             std::cout << "ERROR: creating thread failed --> " << res << std::endl;
             exit(-1);
         }
     }
-    for (t = 0; t < NUMBER_OF_THREADS; t++) {
+    for (t = 0; t < num_tr; t++) {
         res = pthread_join(threads[t], NULL);
         if (res) {
             std::cout << "ERROR: joining threads failed --> " << res << std::endl;
@@ -297,9 +315,10 @@ void run() {
     auto purple_haze_end = TIME();
     std::cout << "Purple: " << MILLISEC(purple_haze_end - purple_haze_start)  << " ms" << std::endl;
 
-
-    // handle_threads(draw_lines_filter);
-
+    auto draw_lines_start = TIME();
+    handle_threads(draw_lines_filter, 3);
+    auto draw_lines_end = TIME();
+    std::cout << "Lines: " << MILLISEC(draw_lines_end - draw_lines_start)  << " ms" << std::endl;
 
     auto write_file_start = TIME();
     handle_threads(write_out_bmp24);
@@ -316,13 +335,6 @@ int main(int argc, char* argv[]) {
     auto start = TIME();
     init(argv[1]);
     run();
-
-    // auto draw_lines_start = TIME();
-    // // draw_lines_filter();
-    // auto draw_lines_end = TIME();
-    // std::cout << "Lines: " << MILLISEC(draw_lines_end - draw_lines_start)  << " ms" << std::endl;
-
-    // // write_out_bmp24();
 
     auto end = TIME();
     std::cout << "Execution: " << MILLISEC(end - start)  << " ms" << std::endl;
