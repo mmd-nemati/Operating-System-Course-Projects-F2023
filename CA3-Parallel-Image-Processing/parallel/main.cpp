@@ -13,13 +13,13 @@ constexpr int MAX_RGB_VALUE = 255;
 constexpr int MIN_RGB_VALUE = 0;
 constexpr int GAUSSIAN_BLUR_KERNEL[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
 constexpr double NORMALIZE_FACTOR = 1.0/16.0;
-#define NUMBER_OF_THREADS 8
+constexpr int  NUMBER_OF_THREADS = 8;
 
 typedef int LONG;
 typedef unsigned short WORD;
 typedef unsigned int DWORD;
 
-#pragma pack(push, 1)
+#pragma pack(1)
 typedef struct tagBITMAPFILEHEADER {
     WORD bf_type;
     DWORD bf_size;
@@ -41,7 +41,6 @@ typedef struct tagBITMAPINFOHEADER {
     DWORD bi_clr_used;
     DWORD bi_clr_important;
 } BITMAPINFOHEADER, *PBITMAPINFOHEADER;
-#pragma pack(pop)
 
 struct Pixel {
     unsigned char red;
@@ -51,6 +50,7 @@ struct Pixel {
 
 
 Pixel **photo;
+Pixel **prev;
 char *file_buffer;
 int buffer_size;
 int rows;
@@ -156,6 +156,17 @@ void alloc_photo() {
     photo = make_photo();
 }
 
+void* save_prev_photo(void *tid) {
+    long thread_id = (long)tid;
+    int start_row = double(rows) / double(NUMBER_OF_THREADS) * thread_id;
+    int end_row = double(rows) / double(NUMBER_OF_THREADS) * (thread_id + 1);
+    for (int i = start_row; i < end_row; i++)
+        for (int j = 0; j < cols; j++)
+            prev[i][j] = photo[i][j];
+
+    pthread_exit(NULL);
+}
+
 void init(char* input_file_name) {
     if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
         std::cout << "ERROR: reading input file failed" << std::endl;
@@ -177,12 +188,11 @@ void* flip_photo_filter(void* tid) {
 
 
 void* blur_photo_filter(void* tid) {
-    Pixel** prev = make_photo();
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j < cols; j++)
-            prev[i][j] = photo[i][j];
+    long thread_id = (long)tid;
+    int start_row = double(rows) / double(NUMBER_OF_THREADS) * thread_id;
+    int end_row = double(rows) / double(NUMBER_OF_THREADS) * (thread_id + 1);
 
-    for (int i = 0; i < rows; i++) {
+    for (int i = start_row; i < end_row; i++) {
         for (int j = 0; j < cols; j++) {
             int tmp_red = 0;
             int tmp_green = 0;
@@ -203,7 +213,7 @@ void* blur_photo_filter(void* tid) {
             photo[i][j].blue = CLAMP(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
         }
     }
-      pthread_exit(NULL);
+    pthread_exit(NULL);
 }
 
 void* purple_haze_filter(void* tid) {
@@ -271,7 +281,13 @@ void run() {
     auto flip_end = TIME();
     std::cout << "Flip: " << MILLISEC(flip_end - flip_start)  << " ms" << std::endl;
 
-    // handle_threads(blur_photo_filter);
+    prev = make_photo();
+    handle_threads(save_prev_photo);
+
+    auto blur_start = TIME();
+    handle_threads(blur_photo_filter);
+    auto blur_end = TIME();
+    std::cout << "Blur: " << MILLISEC(blur_end - blur_start)  << " ms" << std::endl;
     // handle_threads(purple_haze_filter);
     // handle_threads(draw_lines_filter);
 
@@ -319,8 +335,8 @@ int main(int argc, char* argv[]) {
 
     // // write_out_bmp24();
 
-    // auto end = TIME();
-    // std::cout << "Execution: " << MILLISEC(end - start)  << " ms" << std::endl;
+    auto end = TIME();
+    std::cout << "Execution: " << MILLISEC(end - start)  << " ms" << std::endl;
 
     return 0;
 }
