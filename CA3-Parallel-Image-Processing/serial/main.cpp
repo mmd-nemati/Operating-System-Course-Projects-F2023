@@ -119,13 +119,13 @@ void write_out_bmp24() {
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    file_buffer[buffer_size - count] = photo[i][j].red;
-                    break;
-                case 1:
                     file_buffer[buffer_size - count] = photo[i][j].green;
                     break;
-                case 2:
+                case 1:
                     file_buffer[buffer_size - count] = photo[i][j].blue;
+                    break;
+                case 2:
+                    file_buffer[buffer_size - count] = photo[i][j].red;
                     break;
                 }
                 count++;
@@ -196,7 +196,7 @@ void purple_haze_filter() {
             int new_red = 0.5 * double(photo[i][j].red) + 0.3 * double(photo[i][j].green) + 0.5 * double(photo[i][j].blue);
             int new_green =  0.16 * double(photo[i][j].red) + 0.5 * double(photo[i][j].green) + 0.16 * double(photo[i][j].blue);
             int new_blue = 0.6 * double(photo[i][j].red) + 0.2 * double(photo[i][j].green) + 0.8 * double(photo[i][j].blue);
-
+            
             photo[i][j].red = std::clamp(new_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
             photo[i][j].green = std::clamp(new_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
             photo[i][j].blue = std::clamp(new_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
