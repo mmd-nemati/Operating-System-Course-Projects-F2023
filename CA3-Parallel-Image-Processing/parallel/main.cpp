@@ -13,7 +13,7 @@ constexpr int MAX_RGB_VALUE = 255;
 constexpr int MIN_RGB_VALUE = 0;
 constexpr int GAUSSIAN_BLUR_KERNEL[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
 constexpr double NORMALIZE_FACTOR = 1.0/16.0;
-constexpr int NUMBER_OF_THREADS = 4;
+#define NUMBER_OF_THREADS 8
 
 typedef int LONG;
 typedef unsigned short WORD;
@@ -165,8 +165,11 @@ void init(char* input_file_name) {
 }
 
 void* flip_photo_filter(void* tid) {
+    long thread_id = (long)tid; 
+    int start_col = double(cols) / double(NUMBER_OF_THREADS) * thread_id;
+    int end_col = double(cols) / double(NUMBER_OF_THREADS) * (thread_id + 1);
     for (int i = 0; i < rows / 2; i++)
-        for (int j = 0; j < cols; j++)
+        for (int j = start_col; j < end_col; j++)
             std::swap(photo[i][j], photo[rows - i - 1][j]);
 
     pthread_exit(NULL);
@@ -263,7 +266,11 @@ void run() {
     std::cout << "Read: " << MILLISEC(read_file_end - read_file_start) << " ms" << std::endl;
 
 
-    // handle_threads(flip_photo_filter);
+     auto flip_start = TIME();
+    handle_threads(flip_photo_filter);
+    auto flip_end = TIME();
+    std::cout << "Flip: " << MILLISEC(flip_end - flip_start)  << " ms" << std::endl;
+
     // handle_threads(blur_photo_filter);
     // handle_threads(purple_haze_filter);
     // handle_threads(draw_lines_filter);
