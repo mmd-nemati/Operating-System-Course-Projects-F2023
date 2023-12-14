@@ -1,9 +1,11 @@
 #include <fstream>
 #include <iostream>
 #include <algorithm>
+#include <chrono>
 
 #define EQ(x, y) abs(x - y) <= 0.00001f
-
+#define TIME() std::chrono::high_resolution_clock::now()
+#define MILLISEC(x) std::chrono::duration_cast< std::chrono::duration<float, std::milli>> (x).count()
 
 constexpr char OUTPUT_FILE[] = "output.bmp";
 constexpr int MAX_RGB_VALUE = 255;
@@ -189,20 +191,15 @@ void blur_photo_filter() {
 }
 
 void purple_haze_filter() {
-    Pixel** prev = make_photo();
-    for (int i = 0; i < rows; i++)
-        for (int j = 0; j < cols; j++)
-            prev[i][j] = photo[i][j];
-
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++) {
-            int tmp_red = double(prev[i][j].red) * 0.5 + double(prev[i][j].green) * 0.3 + double(prev[i][j].blue) * 0.5;
-            int tmp_green = double(prev[i][j].red) * 0.16 + double(prev[i][j].green) * 0.5 + double(prev[i][j].blue) * 0.16;
-            int tmp_blue = double(prev[i][j].red) * 0.6 + double(prev[i][j].green) * 0.2 + double(prev[i][j].blue) * 0.8;
+            int new_red = 0.5 * double(photo[i][j].red) + 0.3 * double(photo[i][j].green) + 0.5 * double(photo[i][j].blue);
+            int new_green =  0.16 * double(photo[i][j].red) + 0.5 * double(photo[i][j].green) + 0.16 * double(photo[i][j].blue);
+            int new_blue = 0.6 * double(photo[i][j].red) + 0.2 * double(photo[i][j].green) + 0.8 * double(photo[i][j].blue);
 
-            photo[i][j].red = std::clamp(tmp_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
-            photo[i][j].green = std::clamp(tmp_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
-            photo[i][j].blue = std::clamp(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].red = std::clamp(new_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].green = std::clamp(new_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].blue = std::clamp(new_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
         }
 
 }
@@ -228,16 +225,40 @@ int main(int argc, char* argv[]) {
         std::cout << "Usage: " << argv[0] << " <input_file_name>" << std::endl;
         return 1;
     }
+
+    auto start = TIME();
     init(argv[1]);
 
+    auto read_file_start = TIME();
     get_pixels_from_bmp24();
-    // apply filters
+    auto read_file_end = TIME();
+    
+    std::cout << "Read: " << MILLISEC(read_file_end - read_file_start) << " ms" << std::endl;
+
+    auto flip_start = TIME();
     flip_photo_filter();
+    auto flip_end = TIME();
+    std::cout << "Flip: " << MILLISEC(flip_end - flip_start)  << " ms" << std::endl;
+
+    auto blur_start = TIME();
     blur_photo_filter();
+    auto blur_end = TIME();
+    std::cout << "Blur: " << MILLISEC(blur_end - blur_start)  << " ms" << std::endl;
+
+    auto purple_haze_start = TIME();
     purple_haze_filter();
+    auto purple_haze_end = TIME();
+    std::cout << "Purple: " << MILLISEC(purple_haze_end - purple_haze_start)  << " ms" << std::endl;
+
+    auto draw_lines_start = TIME();
     draw_lines_filter();
-    // end filters0
+    auto draw_lines_end = TIME();
+    std::cout << "Lines: " << MILLISEC(draw_lines_end - draw_lines_start)  << " ms" << std::endl;
+
     write_out_bmp24();
+
+    auto end = TIME();
+    std::cout << "Execution: " << MILLISEC(end - start)  << " ms" << std::endl;
 
     return 0;
 }
