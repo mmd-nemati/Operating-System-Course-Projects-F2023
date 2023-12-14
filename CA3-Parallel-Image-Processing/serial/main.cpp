@@ -1,11 +1,11 @@
 #include <fstream>
 #include <iostream>
-#include <algorithm>
 #include <chrono>
 
 #define EQ(x, y) abs(x - y) <= 0.00001f
 #define TIME() std::chrono::high_resolution_clock::now()
-#define MILLISEC(x) std::chrono::duration_cast< std::chrono::duration<float, std::milli>> (x).count()
+#define MILLISEC(x) std::chrono::duration_cast<std::chrono::duration<float, std::milli>> (x).count()
+#define CLAMP(x, low, high) (x > high) ? high : (x < low) ? low : x;
 
 constexpr char OUTPUT_FILE[] = "output.bmp";
 constexpr int MAX_RGB_VALUE = 255;
@@ -183,9 +183,9 @@ void blur_photo_filter() {
                     }
                 }
             }
-            photo[i][j].red = std::clamp(tmp_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
-            photo[i][j].green = std::clamp(tmp_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
-            photo[i][j].blue = std::clamp(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].red = CLAMP(tmp_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].green = CLAMP(tmp_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].blue = CLAMP(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
         }
     }
 }
@@ -197,9 +197,9 @@ void purple_haze_filter() {
             int new_green =  0.16 * double(photo[i][j].red) + 0.5 * double(photo[i][j].green) + 0.16 * double(photo[i][j].blue);
             int new_blue = 0.6 * double(photo[i][j].red) + 0.2 * double(photo[i][j].green) + 0.8 * double(photo[i][j].blue);
             
-            photo[i][j].red = std::clamp(new_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
-            photo[i][j].green = std::clamp(new_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
-            photo[i][j].blue = std::clamp(new_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].red = CLAMP(new_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].green = CLAMP(new_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].blue = CLAMP(new_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
         }
 
 }
