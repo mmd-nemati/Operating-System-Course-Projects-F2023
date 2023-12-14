@@ -2,6 +2,9 @@
 #include <iostream>
 #include <algorithm>
 
+#define EQ(x, y) abs(x - y) <= 0.00001f
+
+
 constexpr char OUTPUT_FILE[] = "output.bmp";
 constexpr int MAX_RGB_VALUE = 255;
 constexpr int MIN_RGB_VALUE = 0;
@@ -204,6 +207,22 @@ void purple_haze_filter() {
 
 }
 
+void draw_lines_filter() {
+    int mid_row = rows / 2;
+    int mid_col = cols / 2;
+    
+    float slope1 = -(float)(mid_row) / (float)(mid_col);
+    float slope2 = -(float)(rows) / (float)(cols);
+
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            if (EQ(j * slope1 + mid_row, float(i)) || EQ(j * slope1 + mid_row + rows, float(i)) || EQ(j * slope2 + rows, float(i))) {
+                photo[i][j].red = MAX_RGB_VALUE;
+                photo[i][j].green = MAX_RGB_VALUE;
+                photo[i][j].blue = MAX_RGB_VALUE;
+            }
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cout << "Usage: " << argv[0] << " <input_file_name>" << std::endl;
@@ -216,6 +235,7 @@ int main(int argc, char* argv[]) {
     flip_photo_filter();
     blur_photo_filter();
     purple_haze_filter();
+    draw_lines_filter();
     // end filters0
     write_out_bmp24();
 
