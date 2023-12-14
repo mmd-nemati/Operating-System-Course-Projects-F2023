@@ -157,10 +157,10 @@ void flip_photo_filter() {
 
 
 void blur_photo_filter() {
-    Pixel** tmp = make_photo();
+    Pixel** prev = make_photo();
     for (int i = 0; i < rows; i++)
         for (int j = 0; j < cols; j++)
-            tmp[i][j] = photo[i][j];
+            prev[i][j] = photo[i][j];
 
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
@@ -172,9 +172,9 @@ void blur_photo_filter() {
                     int x_neighbor = i + dx;
                     int y_neighbor = j + dy;
                     if (x_neighbor >= 0 && x_neighbor < rows && y_neighbor >= 0 && y_neighbor < cols) {
-                        tmp_red += int(tmp[x_neighbor][y_neighbor].red) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
-                        tmp_green += int(tmp[x_neighbor][y_neighbor].green) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
-                        tmp_blue += int(tmp[x_neighbor][y_neighbor].blue) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_red += int(prev[x_neighbor][y_neighbor].red) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_green += int(prev[x_neighbor][y_neighbor].green) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_blue += int(prev[x_neighbor][y_neighbor].blue) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
                     }
                 }
             }
@@ -183,6 +183,25 @@ void blur_photo_filter() {
             photo[i][j].blue = std::clamp(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
         }
     }
+}
+
+void purple_haze_filter() {
+    Pixel** prev = make_photo();
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++)
+            prev[i][j] = photo[i][j];
+
+    for (int i = 0; i < rows; i++)
+        for (int j = 0; j < cols; j++) {
+            int tmp_red = double(prev[i][j].red) * 0.5 + double(prev[i][j].green) * 0.3 + double(prev[i][j].blue) * 0.5;
+            int tmp_green = double(prev[i][j].red) * 0.16 + double(prev[i][j].green) * 0.5 + double(prev[i][j].blue) * 0.16;
+            int tmp_blue = double(prev[i][j].red) * 0.6 + double(prev[i][j].green) * 0.2 + double(prev[i][j].blue) * 0.8;
+
+            photo[i][j].red = std::clamp(tmp_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].green = std::clamp(tmp_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
+            photo[i][j].blue = std::clamp(tmp_blue, MIN_RGB_VALUE, MAX_RGB_VALUE);
+        }
+
 }
 
 int main(int argc, char* argv[]) {
@@ -196,6 +215,7 @@ int main(int argc, char* argv[]) {
     // apply filters
     flip_photo_filter();
     blur_photo_filter();
+    purple_haze_filter();
     // end filters0
     write_out_bmp24();
 
