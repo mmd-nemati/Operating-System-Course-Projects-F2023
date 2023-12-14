@@ -173,6 +173,7 @@ void init(char* input_file_name) {
         exit(1);
     }
     alloc_photo();
+    prev = make_photo();
 }
 
 void* flip_photo_filter(void* tid) {
@@ -217,7 +218,11 @@ void* blur_photo_filter(void* tid) {
 }
 
 void* purple_haze_filter(void* tid) {
-    for (int i = 0; i < rows; i++)
+    long thread_id = (long)tid;
+    int start_row = double(rows) / double(NUMBER_OF_THREADS) * thread_id;
+    int end_row = double(rows) / double(NUMBER_OF_THREADS) * (thread_id + 1);
+
+    for (int i = start_row; i < end_row; i++)
         for (int j = 0; j < cols; j++) {
             int new_red = 0.5 * double(photo[i][j].red) + 0.3 * double(photo[i][j].green) + 0.5 * double(photo[i][j].blue);
             int new_green =  0.16 * double(photo[i][j].red) + 0.5 * double(photo[i][j].green) + 0.16 * double(photo[i][j].blue);
@@ -275,20 +280,24 @@ void run() {
     auto read_file_end = TIME();
     std::cout << "Read: " << MILLISEC(read_file_end - read_file_start) << " ms" << std::endl;
 
-
-     auto flip_start = TIME();
+    auto flip_start = TIME();
     handle_threads(flip_photo_filter);
     auto flip_end = TIME();
     std::cout << "Flip: " << MILLISEC(flip_end - flip_start)  << " ms" << std::endl;
 
-    prev = make_photo();
     handle_threads(save_prev_photo);
 
     auto blur_start = TIME();
     handle_threads(blur_photo_filter);
     auto blur_end = TIME();
     std::cout << "Blur: " << MILLISEC(blur_end - blur_start)  << " ms" << std::endl;
-    // handle_threads(purple_haze_filter);
+
+    auto purple_haze_start = TIME();
+    handle_threads(purple_haze_filter);
+    auto purple_haze_end = TIME();
+    std::cout << "Purple: " << MILLISEC(purple_haze_end - purple_haze_start)  << " ms" << std::endl;
+
+
     // handle_threads(draw_lines_filter);
 
 
@@ -307,26 +316,6 @@ int main(int argc, char* argv[]) {
     auto start = TIME();
     init(argv[1]);
     run();
-    // auto read_file_start = TIME();
-    // // get_pixels_from_bmp24();
-    // auto read_file_end = TIME();
-    
-    // std::cout << "Read: " << MILLISEC(read_file_end - read_file_start) << " ms" << std::endl;
-
-    // auto flip_start = TIME();
-    // // flip_photo_filter();
-    // auto flip_end = TIME();
-    // std::cout << "Flip: " << MILLISEC(flip_end - flip_start)  << " ms" << std::endl;
-
-    // auto blur_start = TIME();
-    // // blur_photo_filter();
-    // auto blur_end = TIME();
-    // std::cout << "Blur: " << MILLISEC(blur_end - blur_start)  << " ms" << std::endl;
-
-    // auto purple_haze_start = TIME();
-    // // purple_haze_filter();
-    // auto purple_haze_end = TIME();
-    // std::cout << "Purple: " << MILLISEC(purple_haze_end - purple_haze_start)  << " ms" << std::endl;
 
     // auto draw_lines_start = TIME();
     // // draw_lines_filter();
