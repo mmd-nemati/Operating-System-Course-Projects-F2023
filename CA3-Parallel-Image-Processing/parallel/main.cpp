@@ -13,7 +13,7 @@ constexpr int MAX_RGB_VALUE = 255;
 constexpr int MIN_RGB_VALUE = 0;
 constexpr int GAUSSIAN_BLUR_KERNEL[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
 constexpr double NORMALIZE_FACTOR = 1.0/16.0;
-constexpr int  NUMBER_OF_THREADS = 8;
+constexpr int NUMBER_OF_THREADS = 8;
 
 typedef int LONG;
 typedef unsigned short WORD;
@@ -48,7 +48,6 @@ struct Pixel {
     unsigned char blue;
 };
 
-
 Pixel **photo;
 Pixel **prev;
 char *file_buffer;
@@ -57,6 +56,37 @@ int rows;
 int cols;
 float slopes[3][2];
 
+Pixel** make_photo() {
+    Pixel** photo = new Pixel*[rows];
+    for (int i = 0; i < rows; i++)
+        photo[i] = new Pixel[cols];
+    return photo;
+}
+
+void alloc_photo() {
+    photo = make_photo();
+}
+
+void* save_prev_photo(void *tid) {
+    long thread_id = (long)tid;
+    int start_row = double(rows) / double(NUMBER_OF_THREADS) * thread_id;
+    int end_row = double(rows) / double(NUMBER_OF_THREADS) * (thread_id + 1);
+    for (int i = start_row; i < end_row; i++)
+        for (int j = 0; j < cols; j++)
+            prev[i][j] = photo[i][j];
+
+    pthread_exit(NULL);
+}
+
+void fill_slopes() {
+    int mid_row = rows / 2;
+    int mid_col = cols / 2;
+    float slope1 = -(float)(mid_row) / (float)(mid_col);
+    float slope2 = -(float)(rows) / (float)(cols);
+    slopes[0][0] = slope1; slopes[0][1] = mid_row;
+    slopes[1][0] = slope1; slopes[1][1] = mid_row + rows;
+    slopes[2][0] = slope2; slopes[2][1] = rows;
+}
 
 bool fill_and_allocate(char*& buffer, const char* file_name, int& rows, int& cols, int& buffer_size) {
     std::ifstream file(file_name);
@@ -144,50 +174,6 @@ void* write_out_bmp24(void* tid) {
     }
     write.write(file_buffer, buffer_size);
     pthread_exit(NULL);
-}
-
-Pixel** make_photo() {
-    Pixel** photo = new Pixel*[rows];
-    for (int i = 0; i < rows; i++)
-        photo[i] = new Pixel[cols];
-    return photo;
-}
-
-void alloc_photo() {
-    photo = make_photo();
-}
-
-void* save_prev_photo(void *tid) {
-    long thread_id = (long)tid;
-    int start_row = double(rows) / double(NUMBER_OF_THREADS) * thread_id;
-    int end_row = double(rows) / double(NUMBER_OF_THREADS) * (thread_id + 1);
-    for (int i = start_row; i < end_row; i++)
-        for (int j = 0; j < cols; j++)
-            prev[i][j] = photo[i][j];
-
-    pthread_exit(NULL);
-}
-
-
-
-void fill_slopes() {
-    int mid_row = rows / 2;
-    int mid_col = cols / 2;
-    float slope1 = -(float)(mid_row) / (float)(mid_col);
-    float slope2 = -(float)(rows) / (float)(cols);
-    slopes[0][0] = slope1; slopes[0][1] = mid_row;
-    slopes[1][0] = slope1; slopes[1][1] = mid_row + rows;
-    slopes[2][0] = slope2; slopes[2][1] = rows;
-}
-
-void init(char* input_file_name) {
-    if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
-        std::cout << "ERROR: reading input file failed" << std::endl;
-        exit(1);
-    }
-    alloc_photo();
-    prev = make_photo();
-    fill_slopes();
 }
 
 void* flip_photo_filter(void* tid) {
@@ -326,6 +312,16 @@ void run() {
     std::cout << "Write: " << MILLISEC(write_file_end - write_file_start) << " ms" << std::endl;
 }
 
+void init(char* input_file_name) {
+    if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
+        std::cout << "ERROR: reading input file failed" << std::endl;
+        exit(1);
+    }
+    alloc_photo();
+    prev = make_photo();
+    fill_slopes();
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         std::cout << "Usage: " << argv[0] << " <input_file_name>" << std::endl;
@@ -333,6 +329,7 @@ int main(int argc, char* argv[]) {
     }
 
     auto start = TIME();
+    
     init(argv[1]);
     run();
 

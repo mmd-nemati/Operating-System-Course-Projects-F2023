@@ -47,13 +47,22 @@ struct Pixel {
     unsigned char blue;
 };
 
-
 Pixel **photo;
 char *file_buffer;
 int buffer_size;
 int rows;
 int cols;
 
+Pixel** make_photo() {
+    Pixel** photo = new Pixel*[rows];
+    for (int i = 0; i < rows; i++)
+        photo[i] = new Pixel[cols];
+    return photo;
+}
+
+void alloc_photo() {
+    photo = make_photo();
+}
 
 bool fill_and_allocate(char*& buffer, const char* file_name, int& rows, int& cols, int& buffer_size) {
     std::ifstream file(file_name);
@@ -135,31 +144,11 @@ void write_out_bmp24() {
     write.write(file_buffer, buffer_size);
 }
 
-Pixel** make_photo() {
-    Pixel** photo = new Pixel*[rows];
-    for (int i = 0; i < rows; i++)
-        photo[i] = new Pixel[cols];
-    return photo;
-}
-
-void alloc_photo() {
-    photo = make_photo();
-}
-
-void init(char* input_file_name) {
-    if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
-        std::cout << "ERROR: reading input file failed" << std::endl;
-        exit(1);
-    }
-    alloc_photo();
-}
-
 void flip_photo_filter() {
     for (int i = 0; i < rows / 2; i++)
         for (int j = 0; j < cols; j++)
             std::swap(photo[i][j], photo[rows - i - 1][j]);
 }
-
 
 void blur_photo_filter() {
     Pixel** prev = make_photo();
@@ -220,19 +209,10 @@ void draw_lines_filter() {
             }
 }
 
-int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::cout << "Usage: " << argv[0] << " <input_file_name>" << std::endl;
-        return 1;
-    }
-
-    auto start = TIME();
-    init(argv[1]);
-
+void run() {
     auto read_file_start = TIME();
     get_pixels_from_bmp24();
     auto read_file_end = TIME();
-    
     std::cout << "Read: " << MILLISEC(read_file_end - read_file_start) << " ms" << std::endl;
 
     auto flip_start = TIME();
@@ -259,6 +239,26 @@ int main(int argc, char* argv[]) {
     write_out_bmp24();
     auto write_file_end = TIME();
     std::cout << "Write: " << MILLISEC(write_file_end - write_file_start) << " ms" << std::endl;
+}
+
+void init(char* input_file_name) {
+    if (!fill_and_allocate(file_buffer, input_file_name, rows, cols, buffer_size)) {
+        std::cout << "ERROR: reading input file failed" << std::endl;
+        exit(1);
+    }
+    alloc_photo();
+}
+
+int main(int argc, char* argv[]) {
+    if (argc != 2) {
+        std::cout << "Usage: " << argv[0] << " <input_file_name>" << std::endl;
+        return 1;
+    }
+
+    auto start = TIME();
+    
+    init(argv[1]);
+    run();
 
     auto end = TIME();
     std::cout << "Execution: " << MILLISEC(end - start)  << " ms" << std::endl;
