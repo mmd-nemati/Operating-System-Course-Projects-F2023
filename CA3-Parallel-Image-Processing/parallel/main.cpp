@@ -159,13 +159,13 @@ void* write_out_bmp24(void* tid) {
             for (int k = 0; k < 3; k++) {
                 switch (k) {
                 case 0:
-                    file_buffer[buffer_size - count] = photo[i][j].green;
+                    file_buffer[buffer_size - count] = photo[i][j].red;
                     break;
                 case 1:
-                    file_buffer[buffer_size - count] = photo[i][j].blue;
+                    file_buffer[buffer_size - count] = photo[i][j].green;
                     break;
                 case 2:
-                    file_buffer[buffer_size - count] = photo[i][j].red;
+                    file_buffer[buffer_size - count] = photo[i][j].blue;
                     break;
                 }
                 count++;
