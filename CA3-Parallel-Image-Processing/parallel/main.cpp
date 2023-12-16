@@ -13,6 +13,7 @@ constexpr int MAX_RGB_VALUE = 255;
 constexpr int MIN_RGB_VALUE = 0;
 constexpr int GAUSSIAN_BLUR_KERNEL[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
 constexpr double NORMALIZE_FACTOR = 1.0/16.0;
+constexpr double PURPLE_HAZE_FACTORS[3][3] = {{0.5, 0.3, 0.5}, {0.16, 0.5, 0.16}, {0.6, 0.2, 0.8}};
 constexpr int NUMBER_OF_THREADS = 8;
 
 typedef int LONG;
@@ -200,12 +201,12 @@ void* blur_photo_filter(void* tid) {
             int tmp_blue = 0;
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
-                    int x_neighbor = i + dx;
-                    int y_neighbor = j + dy;
-                    if (x_neighbor >= 0 && x_neighbor < rows && y_neighbor >= 0 && y_neighbor < cols) {
-                        tmp_red += int(prev[x_neighbor][y_neighbor].red) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
-                        tmp_green += int(prev[x_neighbor][y_neighbor].green) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
-                        tmp_blue += int(prev[x_neighbor][y_neighbor].blue) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                    int x_neigh = i + dx;
+                    int y_neigh = j + dy;
+                    if (x_neigh >= 0 && x_neigh < rows && y_neigh >= 0 && y_neigh < cols) {
+                        tmp_red += int(prev[x_neigh][y_neigh].red) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_green += int(prev[x_neigh][y_neigh].green) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
+                        tmp_blue += int(prev[x_neigh][y_neigh].blue) * GAUSSIAN_BLUR_KERNEL[dx + 1][dy + 1] * NORMALIZE_FACTOR;
                     }
                 }
             }
@@ -224,9 +225,17 @@ void* purple_haze_filter(void* tid) {
 
     for (int i = start_row; i < end_row; i++)
         for (int j = 0; j < cols; j++) {
-            int new_red = 0.5 * double(photo[i][j].red) + 0.3 * double(photo[i][j].green) + 0.5 * double(photo[i][j].blue);
-            int new_green =  0.16 * double(photo[i][j].red) + 0.5 * double(photo[i][j].green) + 0.16 * double(photo[i][j].blue);
-            int new_blue = 0.6 * double(photo[i][j].red) + 0.2 * double(photo[i][j].green) + 0.8 * double(photo[i][j].blue);
+            int new_red = PURPLE_HAZE_FACTORS[0][0] * double(photo[i][j].red) +
+                          PURPLE_HAZE_FACTORS[0][1] * double(photo[i][j].green) +
+                          PURPLE_HAZE_FACTORS[0][2] * double(photo[i][j].blue);
+
+            int new_green = PURPLE_HAZE_FACTORS[1][0] * double(photo[i][j].red) +
+                            PURPLE_HAZE_FACTORS[1][1] * double(photo[i][j].green) +
+                            PURPLE_HAZE_FACTORS[1][2] * double(photo[i][j].blue);
+
+            int new_blue = PURPLE_HAZE_FACTORS[2][0] * double(photo[i][j].red) +
+                           PURPLE_HAZE_FACTORS[2][1] * double(photo[i][j].green) +
+                           PURPLE_HAZE_FACTORS[2][2] * double(photo[i][j].blue);
 
             photo[i][j].red = CLAMP(new_red, MIN_RGB_VALUE, MAX_RGB_VALUE);
             photo[i][j].green = CLAMP(new_green, MIN_RGB_VALUE, MAX_RGB_VALUE);
